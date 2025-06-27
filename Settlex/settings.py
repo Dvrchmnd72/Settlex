@@ -5,7 +5,9 @@ from datetime import datetime
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 
-SECRET_KEY = 'django-insecure-y%h2!$!-^(2!)$dcs2bfbbnxq&)5e@%gw9!-hg%1o--e-31t3@'
+# SECRET_KEY should be provided via the environment in production.
+# A fallback value is only used during local development.
+SECRET_KEY = os.environ.get('SECRET_KEY', 'django-insecure-development-key')
 
 # Set DEBUG to False in production to avoid exposing error details
 DEBUG = True  # Changed from True for production; use True only during development

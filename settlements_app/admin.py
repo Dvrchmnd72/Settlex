@@ -8,21 +8,18 @@ from django.contrib.auth.models import User
 from django.views.decorators.csrf import csrf_exempt
 from django.utils.decorators import method_decorator
 from .models import Solicitor, Instruction, Document, Firm, ChatMessage
-import logging
 from django.core.mail import send_mail
-from django.conf import settings  # ✅ Ensure settings are available
+from django.conf import settings
+import logging
 
 logger = logging.getLogger(__name__)
 
-# ✅ Register Firm Model
 @admin.register(Firm)
 class FirmAdmin(admin.ModelAdmin):
     list_display = ("name", "contact_email", "contact_number", "state")
     search_fields = ("name", "contact_email", "contact_number")
     list_filter = ("state",)
 
-
-# ✅ Register Solicitor Model
 @admin.register(Solicitor)
 class SolicitorAdmin(admin.ModelAdmin):
     list_display = ("instructing_solicitor", "get_firm_name", "office_phone", "mobile_phone", "profession")
@@ -33,50 +30,62 @@ class SolicitorAdmin(admin.ModelAdmin):
         return obj.firm.name if obj.firm else "No Firm Assigned"
     get_firm_name.short_description = "Firm Name"
 
-
-# ✅ Register Instruction Model
 @admin.register(Instruction)
 class InstructionAdmin(admin.ModelAdmin):
-    list_display = ("file_reference", "purchaser_name", "property_address", "settlement_date", "status", "solicitor")
-    search_fields = ("purchaser_name", "property_address", "seller_name", "file_reference")
-    list_filter = ("status", "settlement_date", "solicitor")
+    list_display = (
+        "file_reference", "settlement_type", "solicitor",
+        "purchaser_name", "purchaser_email", "purchaser_mobile",
+        "purchaser_address", "seller_name", "seller_address",
+        "full_transaction_address", "property_type",
+        "title_reference", "settlement_date", "status", "date_created"
+    )
+    search_fields = (
+        "file_reference", "solicitor__user__email",
+        "purchaser_name", "seller_name",
+        "transaction_street_address", "transaction_suburb", "transaction_state", "transaction_postcode",
+        "title_reference"
+    )
+    list_filter = ("settlement_type", "status", "property_type", "date_created")
     list_editable = ("status",)
+    ordering = ("-date_created",)
 
+    def full_transaction_address(self, obj):
+        parts = [
+            obj.transaction_street_address or '',
+            obj.transaction_suburb or '',
+            obj.transaction_state or '',
+            obj.transaction_postcode or ''
+        ]
+        return ", ".join(filter(None, parts))
+    full_transaction_address.short_description = "Transaction Address"
 
-# ✅ Register Document Model
 @admin.register(Document)
 class DocumentAdmin(admin.ModelAdmin):
-    list_display = ("name", "instruction", "uploaded_at")
+    list_display = ("name", "instruction", "document_type", "uploaded_at")
     search_fields = ("name", "instruction__file_reference")
-    list_filter = ("uploaded_at",)
+    list_filter = ("document_type", "uploaded_at")
 
-
-# ✅ Register Chat Messages in Admin
 @admin.register(ChatMessage)
 class ChatMessageAdmin(admin.ModelAdmin):
     list_display = ("sender_name", "recipient_name", "message_preview", "timestamp", "reply_button")
     search_fields = ("sender__username", "recipient__username", "message")
     list_filter = ("timestamp",)
     ordering = ("-timestamp",)
-    readonly_fields = ('is_read',)  # Make is_read read-only to prevent manual toggling
+    readonly_fields = ('is_read',)
 
     def sender_name(self, obj):
-        """Display sender name as 'Settlex' if admin sent the message."""
         return "Settlex (Admin)" if obj.sender.is_superuser else (obj.sender.get_full_name() or obj.sender.username)
     sender_name.short_description = "Sender"
 
     def recipient_name(self, obj):
-        """Display recipient name properly."""
         return obj.recipient.get_full_name() or obj.recipient.username
     recipient_name.short_description = "Recipient"
 
     def message_preview(self, obj):
-        """Display a short preview of the message in Admin."""
-        return obj.message[:50] + "..." if len(obj.message) > 50 else obj.message
+        return obj.message[:50] + "..." if obj.message and len(obj.message) > 50 else obj.message
     message_preview.short_description = "Message Preview"
 
     def reply_button(self, obj):
-        """Generate a wider, styled reply button for admin messages."""
         return format_html(
             '<a href="{}" class="chat-reply-button" '
             'style="display:inline-block; width:120px; padding:10px 15px; '
@@ -88,7 +97,6 @@ class ChatMessageAdmin(admin.ModelAdmin):
     reply_button.short_description = "Reply"
 
     def get_urls(self):
-        """Add custom admin URL for replying to messages."""
         urls = super().get_urls()
         custom_urls = [
             path('chatmessage/<int:message_id>/reply/', self.admin_site.admin_view(self.reply_view), name="chat_reply"),
@@ -97,32 +105,24 @@ class ChatMessageAdmin(admin.ModelAdmin):
 
     @method_decorator(csrf_exempt)
     def reply_view(self, request, message_id):
-        """Handle message replies from admin."""
         message = get_object_or_404(ChatMessage, id=message_id)
-
         if request.method == "POST":
             reply_text = request.POST.get("reply_message", "").strip()
-
             if reply_text:
-                # ✅ Send reply as "Settlex (Admin)"
                 ChatMessage.objects.create(
-                    sender=request.user,  # Admin user
-                    recipient=message.sender,  # Replying back to sender
+                    sender=request.user,
+                    recipient=message.sender,
                     message=reply_text
                 )
-
                 messages.success(request, "Reply sent successfully!")
                 return HttpResponseRedirect(reverse("admin:settlements_app_chatmessage_changelist"))
-
-        # ✅ Fix: Add "subtitle" to context
         context = {
             "message": message,
-            "subtitle": "Replying to Chat Message",  # ✅ Fixes the missing variable error
+            "subtitle": "Replying to Chat Message",
         }
         return render(request, "admin/chat_reply.html", context)
 
     def change_view(self, request, object_id, form_url='', extra_context=None):
-        """Automatically mark message as read when admin views it."""
         message = self.get_object(request, object_id)
         if message and not message.is_read and request.user.is_staff:
             message.is_read = True
@@ -132,15 +132,11 @@ class ChatMessageAdmin(admin.ModelAdmin):
     class Media:
         js = ('admin/js/jquery.init.js',)
 
-
-# ✅ Define a custom action to send activation email
 def send_activation_email(modeladmin, request, queryset):
     for user in queryset:
         if not user.is_active:
-            messages.warning(request, f"User {user.email} is not active. Activate the user before sending email.")
-            continue  # Skip inactive users
-
-        # ✅ Send activation email
+            messages.warning(request, f"User {user.email} is not active.")
+            continue
         subject = "Your SettleX Account Has Been Activated"
         message = f"""
         Dear {user.first_name} {user.last_name},
@@ -152,7 +148,6 @@ def send_activation_email(modeladmin, request, queryset):
         Regards,
         SettleX Team
         """
-
         try:
             send_mail(
                 subject=subject,
@@ -162,18 +157,15 @@ def send_activation_email(modeladmin, request, queryset):
                 fail_silently=False,
             )
             messages.success(request, f"Activation email sent to {user.email}")
-
         except Exception as e:
             messages.error(request, f"Failed to send activation email to {user.email}: {e}")
 
 send_activation_email.short_description = "✅ Send Activation Email"
 
-# ✅ Register the User model with the custom admin action
 class UserAdmin(admin.ModelAdmin):
     list_display = ("username", "email", "is_active")
     list_filter = ("is_active",)
-    actions = [send_activation_email]  # ✅ Add the action to the dropdown
+    actions = [send_activation_email]
 
-# ✅ Unregister default User admin and register our custom one
 admin.site.unregister(User)
 admin.site.register(User, UserAdmin)

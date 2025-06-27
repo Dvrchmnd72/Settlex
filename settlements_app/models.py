@@ -5,19 +5,16 @@ from django.db import models
 from django.utils.timezone import localtime
 import pytz
 
-# Set up logger
 logger = logging.getLogger(__name__)
 
 def generate_file_reference():
-    """Generates a unique file reference using UUID."""
     return str(uuid.uuid4()).split('-')[0].upper()
 
-# Firm Model
 class Firm(models.Model):
     name = models.CharField(max_length=255, unique=True)
     contact_email = models.EmailField()
     contact_number = models.CharField(max_length=20, blank=True, null=True)
-    acn = models.CharField(max_length=50, blank=True, null=True)  # Australian Company Number
+    acn = models.CharField(max_length=50, blank=True, null=True)
     address = models.CharField(max_length=255, blank=True, default="")
     postcode = models.CharField(max_length=10, blank=True, default="")
     state = models.CharField(max_length=50, blank=True, default="")
@@ -25,14 +22,12 @@ class Firm(models.Model):
     def __str__(self):
         return self.name
 
-# Profession Choices
 PROFESSION_CHOICES = [
     ('solicitor', 'Solicitor'),
     ('conveyancer', 'Conveyancer'),
     ('other', 'Other'),
 ]
 
-# Solicitor Model
 class Solicitor(models.Model):
     user = models.OneToOneField(User, on_delete=models.CASCADE, related_name="solicitor")
     instructing_solicitor = models.CharField(max_length=255)
@@ -46,23 +41,30 @@ class Solicitor(models.Model):
     def __str__(self):
         return f"{self.instructing_solicitor} ({self.firm.name if self.firm else 'No Firm'})"
 
-# Instruction Model
+PROPERTY_TYPE_CHOICES = [
+    ('house', 'House'),
+    ('unit', 'Unit/Townhouse'),
+    ('vacant_land', 'Vacant Land'),
+    ('commercial', 'Commercial'),
+    ('other', 'Other'),
+]
+
+SETTLEMENT_CHOICES = [
+    ("purchase", "Purchase"),
+    ("sale", "Sale"),
+    ("lodge_mortgage", "Register Mortgage"),
+    ("discharge_mortgage", "Discharge Mortgage"),
+]
+
+STATUS_CHOICES = [
+    ('pending', 'Pending'),
+    ('accepted', 'Accepted'),
+    ('ready', 'Ready'),
+    ('settling', 'Settling'),
+    ('settled', 'Settled'),
+]
+
 class Instruction(models.Model):
-    SETTLEMENT_CHOICES = [
-        ("purchase", "Purchase"),
-        ("sale", "Sale"),
-        ("lodge_mortgage", "Lodge Mortgage"),
-        ("discharge_mortgage", "Discharge Mortgage"),
-    ]
-
-    STATUS_CHOICES = [
-        ('pending', 'Pending'),
-        ('accepted', 'Accepted'),
-        ('ready', 'Ready'),
-        ('settling', 'Settling'),
-        ('settled', 'Settled'),
-    ]
-
     solicitor = models.ForeignKey(Solicitor, on_delete=models.CASCADE, related_name="instructions")
     file_reference = models.CharField(max_length=50, unique=True, default=generate_file_reference)
     purchaser_name = models.CharField(max_length=255, blank=True, null=True)
@@ -72,13 +74,54 @@ class Instruction(models.Model):
     seller_name = models.CharField(max_length=255, blank=True, null=True)
     seller_address = models.CharField(max_length=255, blank=True, null=True)
     title_search = models.CharField(max_length=255, blank=True, null=True)
-    property_address = models.CharField(max_length=255, blank=True, null=True)
-    title_reference = models.TextField(blank=False, null=False)  # Required
     settlement_type = models.CharField(max_length=100, choices=SETTLEMENT_CHOICES, default="purchase")
     settlement_date = models.DateField(blank=True, null=True)
+    lodgement_date = models.DateField(blank=True, null=True)
     settlement_time = models.TimeField(blank=True, null=True)
+    title_reference = models.TextField(blank=False, null=False)
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='pending')
     date_created = models.DateTimeField(auto_now_add=True)
+
+    # NEW transaction address breakdown fields
+    transaction_street_number = models.CharField(max_length=20, blank=True, null=True)
+    transaction_street_name = models.CharField(max_length=255, blank=True, null=True)
+    transaction_suburb = models.CharField(max_length=100, blank=True, null=True)
+    transaction_state = models.CharField(max_length=50, blank=True, null=True)
+    transaction_postcode = models.CharField(max_length=10, blank=True, null=True)
+    property_type = models.CharField(max_length=20, choices=PROPERTY_TYPE_CHOICES, blank=True, null=True)
+
+    # Company Details
+    company_name = models.CharField(max_length=255, blank=True, null=True)
+    company_abn = models.CharField(max_length=50, blank=True, null=True)
+    company_acn = models.CharField(max_length=50, blank=True, null=True)
+    company_address = models.CharField(max_length=255, blank=True, null=True)
+
+    # Directors (max 5)
+    director_1_name = models.CharField(max_length=255, blank=True, null=True)
+    director_1_email = models.EmailField(blank=True, null=True)
+    director_1_mobile = models.CharField(max_length=20, blank=True, null=True)
+    director_1_address = models.CharField(max_length=255, blank=True, null=True)
+    # directors 2-5 stay same...
+
+    director_2_name = models.CharField(max_length=255, blank=True, null=True)
+    director_2_email = models.EmailField(blank=True, null=True)
+    director_2_mobile = models.CharField(max_length=20, blank=True, null=True)
+    director_2_address = models.CharField(max_length=255, blank=True, null=True)
+
+    director_3_name = models.CharField(max_length=255, blank=True, null=True)
+    director_3_email = models.EmailField(blank=True, null=True)
+    director_3_mobile = models.CharField(max_length=20, blank=True, null=True)
+    director_3_address = models.CharField(max_length=255, blank=True, null=True)
+
+    director_4_name = models.CharField(max_length=255, blank=True, null=True)
+    director_4_email = models.EmailField(blank=True, null=True)
+    director_4_mobile = models.CharField(max_length=20, blank=True, null=True)
+    director_4_address = models.CharField(max_length=255, blank=True, null=True)
+
+    director_5_name = models.CharField(max_length=255, blank=True, null=True)
+    director_5_email = models.EmailField(blank=True, null=True)
+    director_5_mobile = models.CharField(max_length=20, blank=True, null=True)
+    director_5_address = models.CharField(max_length=255, blank=True, null=True)
 
     def __str__(self):
         return f"{self.file_reference} - {self.get_status_display()}"
@@ -86,14 +129,11 @@ class Instruction(models.Model):
     def save(self, *args, **kwargs):
         logger.info(f"Saving Instruction: {self.file_reference}")
         super().save(*args, **kwargs)
-        logger.info(f"Instruction {self.file_reference} saved successfully.")
 
     def delete(self, *args, **kwargs):
         logger.info(f"Deleting Instruction: {self.file_reference}")
         super().delete(*args, **kwargs)
-        logger.info(f"Instruction {self.file_reference} deleted successfully.")
 
-# Document Model
 DOCUMENT_TYPE_CHOICES = [
     ('contract', 'Contract'),
     ('title_search', 'Title Search'),
@@ -117,19 +157,17 @@ class Document(models.Model):
 class ChatMessage(models.Model):
     sender = models.ForeignKey(User, on_delete=models.CASCADE, related_name='sent_messages')
     recipient = models.ForeignKey(User, on_delete=models.CASCADE, related_name='received_messages')
-    message = models.TextField(blank=True, null=True)  # Allow empty messages if file is present
-    file = models.FileField(upload_to='chat_files/', blank=True, null=True)  # Added file field
+    message = models.TextField(blank=True, null=True)
+    file = models.FileField(upload_to='chat_files/', blank=True, null=True)
     is_read = models.BooleanField(default=False)
     timestamp = models.DateTimeField(auto_now_add=True)
 
     def sender_name(self):
-        """Return sender name or 'Settlex' for admin messages."""
         if self.sender.is_superuser:
             return "Settlex"
         return self.sender.get_full_name() or self.sender.username
 
     def formatted_timestamp(self):
-        """Format timestamp for Brisbane timezone."""
         brisbane_tz = pytz.timezone("Australia/Brisbane")
         return localtime(self.timestamp, brisbane_tz).strftime('%d %b %Y, %I:%M %p')
 

@@ -1,6 +1,7 @@
 from pathlib import Path
 import os
 from django.urls import reverse_lazy
+from datetime import datetime
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 
@@ -38,6 +39,7 @@ INSTALLED_APPS = [
     'django_otp.plugins.otp_totp',
     'two_factor',
     'qrcode',
+    'debug_toolbar',
 ]
 
 MIDDLEWARE = [
@@ -53,6 +55,8 @@ MIDDLEWARE = [
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
     'two_factor.middleware.threadlocals.ThreadLocals',
+     'whitenoise.middleware.WhiteNoiseMiddleware',
+     'debug_toolbar.middleware.DebugToolbarMiddleware',
 ]
 
 
@@ -78,6 +82,7 @@ TEMPLATES = [
                 'django.contrib.messages.context_processors.messages',
                 "settlements_app.context_processors.chat_visibility",
                 'settlements_app.context_processors.latest_instruction',
+                "settlements_app.context_processors.static_version",
             ],
         },
     },
@@ -110,6 +115,8 @@ STATIC_URL = '/static/'
 STATICFILES_DIRS = [os.path.join(BASE_DIR, 'static')]
 # During deployment: where collectstatic puts the final compiled static files
 STATIC_ROOT = os.path.join(BASE_DIR, 'staticfiles')
+STATICFILES_STORAGE = 'whitenoise.storage.CompressedManifestStaticFilesStorage'
+STATIC_VERSION = datetime.now().strftime("%Y%m%d%H%M")
 MEDIA_URL = '/media/'
 MEDIA_ROOT = os.path.join(BASE_DIR, 'media')
 
@@ -119,14 +126,14 @@ if not os.path.exists(MEDIA_ROOT):
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
-# Email Configuration
-EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
-EMAIL_HOST = 'smtp-mail.outlook.com'
-EMAIL_PORT = 587
-EMAIL_USE_TLS = True
-EMAIL_HOST_USER = 'info@onestoplegal.com.au'
-EMAIL_HOST_PASSWORD = 'bxkystkrmmrcpdyz'
-DEFAULT_FROM_EMAIL = EMAIL_HOST_USER
+# EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
+# EMAIL_HOST = 'smtp-mail.outlook.com'
+# EMAIL_PORT = 587
+# EMAIL_USE_TLS = True
+# EMAIL_HOST_USER = 'info@onestoplegal.com.au'
+# EMAIL_HOST_PASSWORD = 'smgmbftdnrvrfgln'
+# DEFAULT_FROM_EMAIL = EMAIL_HOST_USER
+
 
 # Authentication Backend
 AUTHENTICATION_BACKENDS = [
@@ -137,7 +144,7 @@ AUTHENTICATION_BACKENDS = [
 # Use the login view defined in ``settlements_app`` for authentication
 # redirects.
 LOGIN_URL = reverse_lazy('settlements_app:login')
-LOGIN_REDIRECT_URL = reverse_lazy("settlements_app:my_settlements")
+LOGIN_REDIRECT_URL = reverse_lazy("settlements_app:my_transactions")
 LOGOUT_REDIRECT_URL = reverse_lazy("settlements_app:home")
 
 
@@ -186,6 +193,10 @@ CORS_ALLOWED_ORIGINS = [
 ]
 
 SILENCED_SYSTEM_CHECKS = ["admin.E404"]
+
+INTERNAL_IPS = [
+    "127.0.0.1",  # Localhost IP
+]
 
 # Logging for Debugging
 LOGGING = {

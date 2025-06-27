@@ -1,4 +1,5 @@
 from .models import Instruction
+from datetime import datetime
 
 def chat_visibility(request):
     """
@@ -38,3 +39,6 @@ def latest_instruction(request):
             'latest_instruction': latest
         }
     return {}
+
+def static_version(request):
+    return {'STATIC_VERSION': int(datetime.now().timestamp())}

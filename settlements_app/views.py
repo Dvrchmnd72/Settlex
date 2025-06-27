@@ -10,6 +10,13 @@ import traceback
 from functools import wraps
 from datetime import datetime, timedelta
 from urllib.parse import quote
+from django.core.mail import send_mail
+from django.http import HttpResponse
+from django.template.loader import get_template
+from xhtml2pdf import pisa
+from django.views.decorators.csrf import csrf_exempt
+from django.http import FileResponse
+
 
 import pytz
 from django import forms
@@ -86,7 +93,7 @@ class SettlexTwoFactorSetupView(SetupView):
         existing = TOTPDevice.objects.filter(user=request.user, confirmed=True).first()
         if existing:
             logger.debug("🔁 User already has confirmed device, redirecting to dashboard.")
-            return redirect('settlements_app:my_settlements')
+            return redirect('settlements_app:my_transactions')
 
         return super().dispatch(request, *args, **kwargs)
 
@@ -272,17 +279,8 @@ class SettlexTwoFactorSetupView(SetupView):
             # ✅ Log the user in with 2FA
             otp_login(self.request, device)
 
-        return redirect('settlements_app:my_settlements')
+        return redirect('settlements_app:my_transactions')
 
-# ✅ Custom Password Reset View to Fix NoReverseMatch
-class CustomPasswordResetView(PasswordResetView):
-    def get_context_data(self, **kwargs):
-        context = super().get_context_data(**kwargs)
-        context['current_app'] = 'settlements_app'
-        return context
-
-    def get_current_app(self):
-        return 'settlements_app'
 
 # Home View
 
@@ -300,7 +298,7 @@ def home(request):
 
         logger.debug(
             "✅ Authenticated and 2FA verified – redirecting to dashboard")
-        return redirect('settlements_app:my_settlements')
+        return redirect('settlements_app:my_transactions')
 
     logger.debug("Rendering public home page")
     return render(request, 'settlements_app/home.html', {
@@ -482,177 +480,159 @@ def new_instruction(request):
         if request.method == 'POST':
             logger.info("✅ Received POST request for new instruction.")
 
-            # Ensure file reference is provided
             file_reference = request.POST.get('file_reference', '').strip()
             if not file_reference:
-                logger.error("❌ No file reference provided.")
                 messages.error(request, "File Reference is required.")
                 return redirect('settlements_app:new_instruction')
 
-            # Other form fields
-            settlement_type = request.POST.get('settlement_type', '').strip()
-            settlement_date = request.POST.get('settlement_date', '').strip()
-            settlement_time = request.POST.get('settlement_time', '').strip()
-            property_address = request.POST.get('property_address', '').strip()
+            transaction_type = request.POST.get('instruction_type', '').strip()
             title_reference = request.POST.get('title_reference', '').strip()
-            purchaser_name = request.POST.get('purchaser_name', '').strip()
-            seller_name = request.POST.get('seller_name', '').strip()
 
-            # Validate Settlement Date
-            if not settlement_date:
-                messages.error(request, "Settlement date is required.")
+            if transaction_type in ['purchase', 'sale']:
+                date_value = request.POST.get('settlement_date', '').strip()
+            else:
+                date_value = request.POST.get('lodgement_date', '').strip()
+
+            if not date_value:
+                messages.error(request, "A settlement or lodgement date is required.")
                 return redirect('settlements_app:new_instruction')
+
             try:
-                settlement_date = datetime.strptime(
-                    settlement_date, '%Y-%m-%d').date()
+                settlement_date = datetime.strptime(date_value, '%Y-%m-%d').date()
             except ValueError:
-                logger.error("❌ Invalid settlement date format.")
-                messages.error(
-                    request, "Invalid date format. Please use YYYY-MM-DD.")
+                messages.error(request, "Invalid date format. Use YYYY-MM-DD.")
                 return redirect('settlements_app:new_instruction')
 
-            # Validate Settlement Time
-            if not settlement_time:
-                messages.error(request, "Settlement time is required.")
-                return redirect('settlements_app:new_instruction')
-            try:
-                settlement_time = datetime.strptime(
-                    settlement_time, '%H:%M').time()
-            except ValueError:
-                logger.error("❌ Invalid settlement time format.")
-                messages.error(
-                    request, "Invalid time format. Please use HH:MM (24-hour format).")
+            # Transaction address fields
+            street_number = request.POST.get('transaction_street_number', '').strip()
+            street_name = request.POST.get('transaction_street_name', '').strip()
+            suburb = request.POST.get('transaction_suburb', '').strip()
+            state = request.POST.get('transaction_state', '').strip()
+            postcode = request.POST.get('transaction_postcode', '').strip()
+            property_type = request.POST.get('property_type', '').strip()
+
+            if not (street_number and street_name and suburb and state and postcode):
+                messages.error(request, "Complete transaction address is required.")
                 return redirect('settlements_app:new_instruction')
 
-            # Validate Property Address
-            if not property_address:
-                messages.error(request, "Property address is required.")
-                return redirect('settlements_app:new_instruction')
-
-            # Validate Title Reference(s)
             if not title_reference:
                 messages.error(request, "Title reference(s) are required.")
                 return redirect('settlements_app:new_instruction')
 
-            # Ensure solicitor exists for the logged-in user
             solicitor = getattr(request.user, 'solicitor', None)
             if not solicitor:
-                logger.warning("❌ User is not a solicitor.")
-                messages.error(
-                    request, "You must be a registered solicitor to submit instructions.")
+                messages.error(request, "You must be a registered solicitor to submit instructions.")
                 return redirect('home')
 
-            # ✅ Save the instruction
             instruction = Instruction.objects.create(
                 solicitor=solicitor,
                 file_reference=file_reference,
-                settlement_type=settlement_type,
-                purchaser_name=purchaser_name if settlement_type == "purchase" else None,
-                seller_name=seller_name if settlement_type == "sale" else None,
+                settlement_type=transaction_type,
                 settlement_date=settlement_date,
-                settlement_time=settlement_time,
-                property_address=property_address,
-                title_reference=title_reference)
+                title_reference=title_reference,
+                transaction_street_number=street_number,
+                transaction_street_name=street_name,
+                transaction_suburb=suburb,
+                transaction_state=state,
+                transaction_postcode=postcode,
+                property_type=property_type
+            )
 
-            logger.info(
-                f"✅ Instruction created successfully: {instruction.file_reference}")
+            client_type = request.POST.get('client')
+            if client_type == 'individual':
+                individuals = []
+                num_individuals = int(request.POST.get('num_individuals', 0))
+                for i in range(1, num_individuals + 1):
+                    name = request.POST.get(f'individual_name_{i}', '').strip()
+                    dob = request.POST.get(f'individual_dob_{i}', '').strip()
+                    email = request.POST.get(f'individual_email_{i}', '').strip()
+                    mobile = request.POST.get(f'individual_mobile_{i}', '').strip()
+                    address_line = request.POST.get(f'individual_address_{i}', '').strip()
+                    suburb_line = request.POST.get(f'individual_suburb_{i}', '').strip()
+                    state_line = request.POST.get(f'individual_state_{i}', '').strip()
+                    postcode_line = request.POST.get(f'individual_postcode_{i}', '').strip()
+                    full_address = f"{address_line}, {suburb_line} {state_line} {postcode_line}"
+                    individuals.append({
+                        'name': name,
+                        'email': email,
+                        'mobile': mobile,
+                        'address': full_address
+                    })
 
-            # Handle document upload if provided
-            if 'document_file' in request.FILES:
-                document_name = request.POST.get('document_name', '').strip()
-                document_file = request.FILES['document_file']
+                instruction.purchaser_name = "; ".join([i['name'] for i in individuals if i['name']])
+                instruction.purchaser_mobile = "; ".join([i['mobile'] for i in individuals if i['mobile']])
+                instruction.purchaser_email = "; ".join([i['email'] for i in individuals if i['email']])
+                instruction.purchaser_address = "; ".join([i['address'] for i in individuals if i['address']])
 
-                if document_file.size > 10485760:  # 10 MB limit (optional)
-                    logger.error("❌ Document file size too large.")
-                    messages.error(
-                        request, "Document file is too large. Please upload a smaller file.")
-                    return redirect('settlements_app:new_instruction')
+            elif client_type == 'company':
+                instruction.purchaser_name = request.POST.get('company_name', '').strip()
+                instruction.purchaser_mobile = request.POST.get('company_abn', '').strip()
+                instruction.purchaser_email = request.POST.get('company_acn', '').strip()
 
-                Document.objects.create(
-                    instruction=instruction,
-                    name=document_name,
-                    file=document_file
-                )
-                logger.info(
-                    f"✅ Document '{document_name}' uploaded for instruction {instruction.file_reference}")
+                company_street = request.POST.get('company_street', '').strip()
+                company_suburb = request.POST.get('company_suburb', '').strip()
+                company_state = request.POST.get('company_state', '').strip()
+                company_postcode = request.POST.get('company_postcode', '').strip()
+                full_company_address = f"{company_street}, {company_suburb} {company_state} {company_postcode}"
+                instruction.purchaser_address = full_company_address
 
+            instruction.save()
+            logger.info(f"✅ Instruction created successfully: {instruction.file_reference}")
             messages.success(request, "Instruction created successfully!")
-            return redirect('settlements_app:my_settlements')
+            return redirect('settlements_app:my_transactions')
 
-        logger.info("⚠️ GET request received for new instruction.")
-        return render(request,
-                      'settlements_app/new_instruction.html',
-                      {'page_title': 'Create New Instruction'})
+        return render(request, 'settlements_app/new_instruction.html', {'page_title': 'Create New Instruction'})
 
     except Exception as e:
         logger.error(traceback.format_exc())
         messages.error(request, f"An unexpected error occurred: {str(e)}")
-        return redirect('settlements_app:my_settlements')
-
+        return redirect('settlements_app:new_instruction')
 
 @otp_required
-def my_settlements(request):
+def my_transactions(request):
     try:
-        # Safely get the user's Solicitor object
         solicitor = getattr(request.user, 'solicitor', None)
-        logger.debug(
-            "👤 Solicitor for user %s: %s",
-            request.user.username,
-            solicitor)
-        print(f"👤 Solicitor for user {request.user.username}: {solicitor}")
+        logger.debug("👤 Solicitor for user %s: %s", request.user.username, solicitor)
 
-        # Check for Solicitor and Firm
         if not solicitor:
             messages.warning(
                 request,
-                "Your account is not fully registered. Please create your solicitor profile.")
-            logger.warning(
-                "⚠️ No solicitor found for user: %s",
-                request.user.username)
-            print(f"⚠️ No solicitor found for user: {request.user.username}")
-            settlements = []
+                "Your account is not fully registered. Please complete your solicitor profile.")
+            logger.warning("⚠️ No solicitor profile found for user: %s", request.user.username)
+            transactions = []
         elif not solicitor.firm:
             messages.warning(
                 request,
-                "Your solicitor profile is not associated with a firm. Please update your profile.")
-            logger.warning("⚠️ No firm found for solicitor: %s", solicitor)
-            print(f"⚠️ No firm found for solicitor: {solicitor}")
-            settlements = []
+                "Your solicitor profile is not linked to a firm. Please update your profile.")
+            logger.warning("⚠️ No firm linked to solicitor: %s", solicitor)
+            transactions = []
         else:
-            # Get settlements associated with the solicitor's firm
-            settlements = Instruction.objects.filter(
-                solicitor__firm=solicitor.firm).order_by('-settlement_date')
-            logger.debug(
-                "📋 Found %d settlements for firm: %s",
-                settlements.count(),
-                solicitor.firm)
-            print(
-                f"📋 Found {settlements.count()} settlements for firm: {solicitor.firm}")
+            # ✅ Fetch instructions related to the solicitor's firm
+            transactions = Instruction.objects.filter(
+                solicitor__firm=solicitor.firm
+            ).order_by('-settlement_date')
+            logger.info("📄 Retrieved %d transactions for firm: %s", transactions.count(), solicitor.firm)
 
-        # Fetch chat messages for the logged-in user
         chat_messages = ChatMessage.objects.filter(
-            recipient=request.user).order_by("timestamp")
-        logger.debug(
-            "💬 Found %d chat messages for user: %s",
-            chat_messages.count(),
-            request.user.username)
-        print(
-            f"💬 Found {chat_messages.count()} chat messages for user: {request.user.username}")
+            recipient=request.user
+        ).order_by("timestamp")
+        logger.debug("💬 Loaded %d chat messages for user: %s", chat_messages.count(), request.user.username)
+
+        # Set enable_chat to True for this page
+        enable_chat = True
 
     except Exception as e:
-        logger.error("🚨 Error loading settlements: %s", str(e))
-        print(f"🚨 Error loading settlements: {str(e)}")
-        messages.error(
-            request,
-            "An error occurred while loading your settlements.")
-        settlements = []
+        logger.error("🚨 Error loading transactions: %s", str(e))
+        messages.error(request, "An error occurred while loading your transactions.")
+        transactions = []
         chat_messages = []
+        enable_chat = False  # If there's an error, chat is disabled
 
-    return render(request, 'settlements_app/my_settlements.html', {
-        'settlements': settlements,
+    return render(request, 'settlements_app/my_transactions.html', {
+        'transactions': transactions,
         'chat_messages': chat_messages,
+        'enable_chat': enable_chat,  # Pass enable_chat to the template
     })
-
 
 def upload_documents(request):
     """Allows solicitors to upload documents for any instruction within their firm."""
@@ -762,7 +742,7 @@ def edit_instruction(request, id):
         if form.is_valid():
             form.save()
             messages.success(request, "Instruction updated successfully!")
-            return redirect('my_settlements')
+            return redirect('my_transactions')
     else:
         form = InstructionForm(instance=instruction)
 
@@ -789,7 +769,7 @@ def delete_instruction(request, id):
     if request.method == 'POST':
         instruction.delete()
         messages.success(request, "Instruction deleted successfully!")
-        return redirect('my_settlements')
+        return redirect('settlements_app:my_transactions')
 
     return render(request, 'settlements_app/delete_instruction.html', {
         'instruction': instruction,
@@ -799,42 +779,43 @@ def delete_instruction(request, id):
 # ✅ View Settlement Details
 
 
-def view_settlement(request, settlement_id):
-    """View settlement details and related documents for the user's firm."""
+def view_transaction(request, transaction_id):
+    """View transaction details and related documents for the user's firm."""
     solicitor = getattr(request.user, 'solicitor', None)
 
     if not solicitor or not solicitor.firm:
         messages.error(
             request,
             "You must be a registered solicitor with a firm to access this page.")
-        return redirect('home')
+        return redirect('settlements_app:home')
 
     try:
-        # ✅ Ensure solicitors from the same firm can see each other's settlements
-        settlement = get_object_or_404(
+        # ✅ Ensure solicitors from the same firm can see each other's transactions
+        transaction = get_object_or_404(
             Instruction,
-            id=settlement_id,
-            solicitor__firm=solicitor.firm  # Ensures access is firm-wide
+            id=transaction_id,
+            solicitor__firm=solicitor.firm
         )
 
-        # ✅ Fetch all documents linked to this settlement
-        documents = Document.objects.filter(instruction=settlement)
+        # ✅ Fetch all documents linked to this transaction
+        documents = Document.objects.filter(instruction=transaction)
 
     except Exception as e:
-        logger.error(f"❌ Error loading settlement details: {e}")
+        logger.error(f"❌ Error loading transaction details: {e}")
         messages.error(
             request,
-            "An error occurred while retrieving settlement details.")
-        return redirect('my_settlements')
+            "An error occurred while retrieving transaction details.")
+        return redirect('settlements_app:my_transactions')
 
     context = {
-        'settlement': settlement,
+        'transaction': transaction,
         'documents': documents,
-        'preselected_instruction': settlement,  # ✅ Fix for missing context variable
-        'page_title': 'View Settlement'
+        'preselected_instruction': transaction,
+        'page_title': 'View Transaction',
     }
 
-    return render(request, 'settlements_app/view_settlements.html', context)
+    return render(request, 'settlements_app/view_transactions.html', context)
+
 
 
 # ✅ Set up logger
@@ -1116,3 +1097,137 @@ def delete_message(request):
                 {"status": "error", "message": "Message not found or unauthorized"}, status=403)
     return JsonResponse(
         {"status": "error", "message": "Invalid request"}, status=400)
+
+def settlement_calculator(request):
+    result = None
+
+    # Define body_corp_levies outside the try block
+    body_corp_levies = [
+        {'label': 'Admin Fund', 'name': 'admin'},
+        {'label': 'Sinking Fund', 'name': 'sinking'},
+        {'label': 'Insurance', 'name': 'insurance'},
+        {'label': 'Special Levy', 'name': 'special'},
+    ]
+
+    if request.method == 'POST':
+        try:
+            # Log the start of the calculation process
+            logger.info("Starting settlement calculation.")
+
+            # Get all necessary data from the form
+            settlement_date = datetime.strptime(request.POST.get('settlement_date'), '%Y-%m-%d').date()
+            adjustment_date = datetime.strptime(request.POST.get('adjustment_date'), '%Y-%m-%d').date()
+            deposit = float(request.POST.get('deposit') or 0)
+            release_mortgage_fee = float(request.POST.get('release_mortgage_fee') or 0)
+
+            # Log the retrieved values
+            logger.debug(f"Settlement Date: {settlement_date}, Adjustment Date: {adjustment_date}, Deposit: {deposit}, Release Mortgage Fee: {release_mortgage_fee}")
+
+            # Get rates data
+            council_amount = float(request.POST.get('council_amount') or 0)
+            council_start = datetime.strptime(request.POST.get('council_start'), '%Y-%m-%d').date()
+            council_end = datetime.strptime(request.POST.get('council_end'), '%Y-%m-%d').date()
+
+            water_amount = float(request.POST.get('water_amount') or 0)
+            water_start = datetime.strptime(request.POST.get('water_start'), '%Y-%m-%d').date()
+            water_end = datetime.strptime(request.POST.get('water_end'), '%Y-%m-%d').date()
+
+            admin_amount = float(request.POST.get('admin_amount') or 0)
+            admin_start = datetime.strptime(request.POST.get('admin_start'), '%Y-%m-%d').date()
+            admin_end = datetime.strptime(request.POST.get('admin_end'), '%Y-%m-%d').date()
+
+            # Calculation function for adjustments
+            def calculate_adjustment(full_amount, period_start, period_end, adj_date):
+                total_days = (period_end - period_start).days + 1
+                buyer_days = (period_end - adj_date).days + 1
+                buyer_days = max(0, min(buyer_days, total_days))
+                daily_rate = full_amount / total_days if total_days else 0
+                return round(buyer_days * daily_rate, 2)
+
+            # Calculate adjustments
+            council_adj = calculate_adjustment(council_amount, council_start, council_end, adjustment_date)
+            water_adj = calculate_adjustment(water_amount, water_start, water_end, adjustment_date)
+            admin_adj = calculate_adjustment(admin_amount, admin_start, admin_end, adjustment_date)
+
+            # Log the adjustments
+            logger.debug(f"Council Adjustment: {council_adj}, Water Adjustment: {water_adj}, Admin Adjustment: {admin_adj}")
+
+            # Calculate total adjustments and payable amount
+            total_adjustments = council_adj + water_adj + admin_adj
+            total_payable = total_adjustments - deposit + release_mortgage_fee
+
+            # Log the total adjustments and payable amount
+            logger.debug(f"Total Adjustments: {total_adjustments}, Total Payable: {total_payable}")
+
+            result = {
+                'settlement_date': settlement_date,
+                'adjustment_date': adjustment_date,
+                'deposit': deposit,
+                'release_mortgage_fee': release_mortgage_fee,
+                'council_adj': council_adj,
+                'water_adj': water_adj,
+                'admin_adj': admin_adj,
+                'total_adjustments': total_adjustments,
+                'total_payable': total_payable
+            }
+
+            # Store results in session for statement rendering later
+            request.session['settlement_data'] = {
+                **{key: str(value) for key, value in result.items()},
+                'body_corp_levies': body_corp_levies,
+            }
+
+            logger.info("Settlement calculation completed and data stored in session.")
+
+            return redirect('settlements_app:settlement_statement')
+
+        except Exception as e:
+            # Log the error
+            logger.error(f"Error occurred in settlement calculation: {str(e)}")
+            messages.error(request, f"Error: {str(e)}")
+
+    # Pass the body_corp_levies variable to the template even if the POST request fails
+    return render(request, 'settlements_app/settlement_calculator.html', {
+        'result': result,
+        'body_corp_levies': body_corp_levies
+    })
+
+def settlement_statement(request):
+    # Retrieve data from the session
+    data = request.session.get('settlement_data')
+
+    # Log the session data for debugging
+    if not data:
+        logging.error("No settlement data found in session.")
+        return redirect('settlements_app:settlement_calculator')  # Redirect back to the calculator if no data is found
+
+    logging.info(f"Settlement Data found in session: {data}")
+
+    # Convert values back to float for display
+    for key in ['deposit', 'release_mortgage_fee', 'council_adj', 'water_adj', 'admin_adj', 'total_adjustments', 'total_payable']:
+        data[key] = float(data[key])
+
+    # You can now render the statement template
+    return render(request, 'settlements_app/settlement_statement.html', {'data': data})
+
+
+
+# PDF VIEW (generate from session data)
+def settlement_statement_pdf(request):
+    data = request.session.get('settlement_data')
+    if not data:
+        return redirect('settlements_app:settlement_calculator')
+
+    # Again cast back to float
+    for key in ['deposit', 'release_mortgage_fee', 'council_adj', 'water_adj', 'admin_adj', 'total_adjustments', 'total_payable']:
+        data[key] = float(data[key])
+
+    template = get_template("settlements_app/settlement_statement_pdf.html")
+    html = template.render({'data': data})
+    response = io.BytesIO()
+    pdf = pisa.pisaDocument(io.BytesIO(html.encode("UTF-8")), response)
+    if not pdf.err:
+        response.seek(0)
+        return FileResponse(response, as_attachment=True, filename="settlement_statement.pdf")
+    else:
+        return HttpResponse("Error generating PDF")

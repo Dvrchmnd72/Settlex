@@ -14,8 +14,6 @@ from binascii import unhexlify, Error as BinasciiError
 
 logger = logging.getLogger(__name__)
 
-
-
 class RegistrationForm(forms.Form):
     first_name = forms.CharField(max_length=100)
     last_name = forms.CharField(max_length=100)
@@ -39,21 +37,18 @@ class RegistrationForm(forms.Form):
 class InstructionForm(forms.ModelForm):
     class Meta:
         model = Instruction
-        fields = [
-            'file_reference', 'settlement_type', 'purchaser_name', 'purchaser_email',
-            'purchaser_mobile', 'purchaser_address', 'seller_name', 'seller_address',
-            'property_address', 'title_search', 'settlement_date', 'status'
-        ]
+        fields = '__all__'
         widgets = {
             'settlement_date': forms.DateInput(attrs={'type': 'date'}),
+            'lodgement_date': forms.DateInput(attrs={'type': 'date'}),
         }
 
     def save(self, commit=True):
-        logger.info(f"Saving InstructionForm for property: {self.cleaned_data.get('property_address')}")
+        logger.info(f"Saving InstructionForm for file reference: {self.cleaned_data.get('file_reference')}")
         instruction = super().save(commit=False)
         if commit:
             instruction.save()
-            logger.info(f"Instruction for property '{instruction.property_address}' has been saved.")
+            logger.info(f"Instruction '{instruction.file_reference}' saved successfully.")
         return instruction
 
     def clean_file_reference(self):
@@ -82,23 +77,18 @@ class DummyForm(forms.Form):
         super().__init__(*args, **kwargs)
 
 class WelcomeStepForm(DummyForm):
-    """Placeholder form for the welcome step."""
     pass
 
 class ValidationStepForm(AuthenticationTokenForm):
     def __init__(self, *args, user=None, device=None, **kwargs):
         self.user = user
         self.device = device
-        logger.debug(
-            "🔐 ValidationStepForm initialized with user: %s and device: %s",
-            self.user,
-            self.device,
-        )
+        logger.debug("🔐 ValidationStepForm initialized with user: %s and device: %s", self.user, self.device)
         super().__init__(self.user, self.device, *args, **kwargs)
 
     def clean_token(self):
         token = self.cleaned_data.get("token")
-        logger.debug("📥 Token received for validation: %s", token)
+        logger.debug("📅 Token received for validation: %s", token)
 
         if not self.device:
             logger.warning("⚠️ No device assigned to ValidationStepForm.")
@@ -112,7 +102,6 @@ class ValidationStepForm(AuthenticationTokenForm):
         return token
 
     def save(self):
-        """Mark device as confirmed after successful token validation."""
         if self.device:
             self.device.confirmed = True
             self.device.save()
@@ -120,8 +109,6 @@ class ValidationStepForm(AuthenticationTokenForm):
         return self.device
 
 class CustomTOTPDeviceForm(forms.Form):
-    """Form used in the generator step to display the QR code."""
-
     def __init__(self, *args, user=None, device=None, **kwargs):
         super().__init__(*args, **kwargs)
         self.device = device
@@ -131,7 +118,6 @@ class CustomTOTPDeviceForm(forms.Form):
         self.secret_b32 = None
         if self.device:
             try:
-                # Convert hex key to base32
                 key_bytes = unhexlify(self.device.key.encode())
                 self.secret_b32 = base64.b32encode(key_bytes).decode("utf-8").replace("=", "")
                 issuer = "Settlex"
@@ -141,20 +127,18 @@ class CustomTOTPDeviceForm(forms.Form):
                     f"&issuer={issuer}&algorithm=SHA1&digits=6&period=30"
                 )
 
-                # Generate QR Code
                 qr = qrcode.make(config_url)
                 buffer = BytesIO()
                 qr.save(buffer, format="PNG")
                 self.qr_code = base64.b64encode(buffer.getvalue()).decode("utf-8")
 
-                logger.debug("📡 QR code generated for: %s", config_url)
+                logger.debug("📱 QR code generated for: %s", config_url)
             except BinasciiError:
                 logger.error("🚨 Device key is not a valid hex string: %s", self.device.key)
             except Exception:
                 logger.exception("⚠️ Failed to generate QR code")
 
     def save(self):
-        """No-op save for compatibility with the wizard."""
         return self.device
 
     def get_context_data(self):
@@ -162,7 +146,7 @@ class CustomTOTPDeviceForm(forms.Form):
             'qr_code_base64': self.qr_code,
             'totp_secret': self.secret_b32,
         }
-        logger.debug("📡 CustomTOTPDeviceForm.get_context_data(): %s", context)
+        logger.debug("📱 CustomTOTPDeviceForm.get_context_data(): %s", context)
         return context
 
 class LoginForm(AuthenticationForm):

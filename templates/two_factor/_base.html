@@ -1,10 +1,14 @@
-{# templates/two_factor/_base.html #}
 {% extends 'settlements_app/base_public.html' %}
 {% load static %}
 
 {% block extra_media %}
   {{ block.super }}
-  {# any 2FA‐specific CSS/JS here #}
+  <link rel="stylesheet" href="{% static 'settlements_app/style.css' %}?v={{ STATIC_VERSION }}">
+
+  <!-- Add Font Awesome -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css"
+        integrity="sha512-papmQqDPRqgOzr2dM0uZ7vUM1SpmjUYZfokqfYZ3sdHRLBtshy5LUqIs7hKk9Q5ozOZFLVW8AK7lfJ5BzJdKqQ=="
+        crossorigin="anonymous" referrerpolicy="no-referrer" />
 {% endblock %}
 
 {% block general_content %}

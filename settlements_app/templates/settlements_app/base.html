@@ -9,10 +9,10 @@
     <!-- Bootstrap 5 CSS -->
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.0.2/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-EVSTQN3/azprG1Anm3QDgpJLIm9Nao0Yz1ztcQTwFspd3yD65VohhpuuCOmLASjC" crossorigin="anonymous">
     <!-- Font Awesome for Icons -->
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.7.2/css/all.min.css" integrity="sha384-nRgPTkuX86pH8yjPJUAFuASXQSSl2/bBUiNV47vSYpKFxHJhbcrGnmlYpYJMeD7a" crossorigin="anonymous">
     <!-- Custom CSS -->
     <link rel="stylesheet" href="{% static 'settlements_app/style.css' %}">
-    <!--
+
     <style>
         body { font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif; margin: 0; padding: 0; background-color: #f4f4f4; }
         .navbar { background-color: #333; color: white; padding: 1rem; display: flex; justify-content: space-between; align-items: center; }
@@ -67,39 +67,48 @@
     -->
 </head>
 <body>
-    {% block content %}
+{% block content %}
     {% if user.is_authenticated %}
-        <!-- Sidebar Layout for My Settlements Page -->
+        <!-- Sidebar Layout for My Transactions Page -->
         <div class="sidebar">
             <div class="logo">
                 {% if user.solicitor and user.solicitor.firm %}
-                    {{ user.solicitor.firm.name|default:'SettleX' }}
+                    {{ user.solicitor.firm.name|default:"SettleX" }}
                 {% else %}
                     SettleX
                 {% endif %}
             </div>
+
             <a href="{% url 'settlements_app:home' %}" class="{% if request.path == '/settlex/' %}active{% endif %}">
                 <i class="fas fa-home"></i> Home
             </a>
-            <a href="{% url 'settlements_app:my_settlements' %}" class="{% if request.path == '/settlex/my-settlements/' %}active{% endif %}">
-                <i class="fas fa-folder-open"></i> My Settlements
+
+            <a href="{% url 'settlements_app:my_transactions' %}" class="{% if request.path == '/settlex/my-transactions/' %}active{% endif %}">
+                <i class="fas fa-folder-open"></i> My Transactions
             </a>
+
+
             <a href="{% url 'settlements_app:new_instruction' %}" class="{% if request.path == '/settlex/new-instruction/' %}active{% endif %}">
                 <i class="fas fa-plus"></i> New Instruction
             </a>
+
             {% if latest_instruction %}
                 <a href="{% url 'settlements_app:upload_documents' %}?settlement_id={{ latest_instruction.id }}"
                    class="{% if request.path|slice:":24" == '/settlex/upload-documents/' %}active{% endif %}">
                     <i class="fas fa-upload"></i> Upload Docs
                 </a>
             {% endif %}
+
+            <a href="{% url 'settlements_app:settlement_calculator' %}" class="{% if request.path == '/settlex/settlement-calculator/' %}active{% endif %}">
+        <i class="fas fa-balance-scale"></i> Settlement Calculator
+    </a>
+
             <a href="{% url 'settlements_app:logout' %}">
                 <i class="fas fa-sign-out-alt"></i> Logout
             </a>
         </div>
 
-
-        <!-- Main Content for My Settlements -->
+        <!-- Main Content for My Transactions -->
         <div class="main-content">
             <div class="topbar">
                 <span class="user-info">Welcome, {{ user.get_full_name|default:user.username }}!</span>
@@ -110,53 +119,47 @@
                 </div>
             </div>
         </div>
+
     {% else %}
         <!-- Navbar Layout for Homepage and Other Pages -->
         <div class="navbar">
             <div class="navbar-left">
-                <a href="{% url 'settlements_app:home' %}">SettleX</a>
+                <a href="{% url 'settlements_app:home' %}">
+                    <img src="{% static 'settlements_app/images/settlex_logo.png' %}" alt="SettleX Logo" style="height:50px;">
+                </a>
             </div>
             <div class="navbar-right">
-                {% if user.is_authenticated %}
-                    <span>Welcome, {{ user.get_full_name|default:user.username }}!</span>
-                    <a href="{% url 'settlements_app:my_settlements' %}">My Settlements</a>
-                    <a href="{% url 'settlements_app:logout' %}">Logout</a>
-                {% else %}
-                    <a class="register-login-btn" href="{% url 'settlements_app:login' %}">Register / Login</a>
-                {% endif %}
+                <a class="register-login-btn" href="{% url 'settlements_app:login' %}">Register / Login</a>
             </div>
         </div>
 
         <div class="container mt-5">
             {% block general_content %}{% endblock %}
         </div>
+
+        {% if enable_chat %}
+            <form id="csrf-form" style="display: none;">{% csrf_token %}</form>
+            <button id="chatToggle" class="chat-toggle"><i class="fas fa-comments"></i></button>
+            <div id="chatContainer" class="chat-container">
+                <div class="chat-header">
+                    <h3>Chat with SettleX</h3>
+                    <button id="chatClose" class="chat-close">×</button>
+                </div>
+                <div id="chatBox" class="chat-box"></div>
+                <div class="chat-input-area">
+                    <button id="emojiButton" class="emoji-button" type="button">😊</button>
+                    <button class="file-upload-button" type="button"><i class="fas fa-paperclip"></i></button>
+                    <label for="chatMessage" class="sr-only">Type a message</label>
+                    <input type="text" id="chatMessage" name="message" placeholder="Type a message..." autocomplete="off">
+                    <label for="chatFile" class="sr-only">Upload a file</label>
+                    <input type="file" id="chatFile" name="file">
+                    <button id="sendButton">Send</button>
+                </div>
+            </div>
+        {% endif %}
     {% endif %}
-    {% endblock %}
-
-
-    {% if enable_chat %}
-    <form id="csrf-form" style="display: none;">
-        {% csrf_token %}
-    </form>
-    <button id="chatToggle" class="chat-toggle"><i class="fas fa-comments"></i></button>
-    <div id="chatContainer" class="chat-container">
-        <div class="chat-header">
-            <h3>Chat with SettleX</h3>
-            <button id="chatClose" class="chat-close">×</button>
-        </div>
-        <div id="chatBox" class="chat-box"></div>
-        <div class="chat-input-area">
-            <button id="emojiButton" class="emoji-button" type="button">😊</button>
-            <button class="file-upload-button" type="button"><i class="fas fa-paperclip"></i></button>
-            <label for="chatMessage" class="sr-only">Type a message</label>
-            <input type="text" id="chatMessage" name="message" placeholder="Type a message..." autocomplete="off">
-            <label for="chatFile" class="sr-only">Upload a file</label>
-            <input type="file" id="chatFile" name="file">
-            <button id="sendButton">Send</button>
-        </div>
-    </div>
-{% endif %}
-
+{% endblock %}
+</body>
 
 </body>
     <!-- Bootstrap JS -->

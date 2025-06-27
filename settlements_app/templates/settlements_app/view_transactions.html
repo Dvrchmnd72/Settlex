@@ -12,16 +12,11 @@
                 SettleX
             {% endif %}
         </div>
-        <a href="{% url 'settlements_app:home' %}" class="{% if request.path == '/settlex/' %}active{% endif %}">
-            <i class="fas fa-home"></i> Home
-        </a>
-        <a href="{% url 'settlements_app:my_settlements' %}" class="{% if request.path == '/settlex/my-settlements/' %}active{% endif %}">
-            <i class="fas fa-folder-open"></i> My Settlements
+        <a href="{% url 'settlements_app:my_transactions' %}" class="{% if request.path == '/settlex/my-transactions/' %}active{% endif %}">
+            <i class="fas fa-folder-open"></i> My Transactions
         </a>
         <a href="{% url 'settlements_app:new_instruction' %}" class="{% if request.path == '/settlex/new-instruction/' %}active{% endif %}">
             <i class="fas fa-plus"></i> New Instruction
-        </a>
-        <a href="{% url 'settlements_app:upload_documents' %}?settlement_id={{ settlement.id }}" class="{% if request.path == '/settlex/upload-documents/' %}active{% endif %}">
         </a>
         <a href="{% url 'settlements_app:logout' %}">
             <i class="fas fa-sign-out-alt"></i> Logout
@@ -37,8 +32,8 @@
             <div class="container-fluid mt-4">
                 <div class="card shadow-sm">
                     <div class="card-header bg-primary text-white d-flex justify-content-between align-items-center">
-                        <h5 class="mb-0">Settlement Details</h5>
-                        <a href="{% url 'settlements_app:my_settlements' %}" class="btn btn-light btn-sm">Back to My Settlements</a>
+                        <h5 class="mb-0">Transaction Details</h5>
+                        <a href="{% url 'settlements_app:my_transactions' %}" class="btn btn-light btn-sm">Back to My Transactions</a>
                     </div>
                     <div class="card-body">
                         {% if messages %}
@@ -52,41 +47,55 @@
                         <div class="row">
                             <div class="col-md-6">
                                 <h6 class="text-muted">File Reference:</h6>
-                                <p>{{ settlement.file_reference }}</p>
+                                <p>{{ transaction.file_reference }}</p>
 
-                                <h6 class="text-muted">Settlement Type:</h6>
-                                <p>{{ settlement.get_settlement_type_display }}</p>
+                                <h6 class="text-muted">Transaction Type:</h6>
+                                <p>{{ transaction.get_settlement_type_display }}</p>
 
-                                <h6 class="text-muted">Settlement Date:</h6>
-                                <p>{{ settlement.settlement_date|date:"d M Y" }}</p>
+                                <h6 class="text-muted">Property Type:</h6>
+                                <p>{{ transaction.get_property_type_display|default:"N/A" }}</p>
+
+                                <h6 class="text-muted">
+                                    {% if transaction.settlement_type|lower == 'purchase' or transaction.settlement_type|lower == 'sale' %}
+                                        Settlement Date:
+                                    {% else %}
+                                        Lodgement Date:
+                                    {% endif %}
+                                </h6>
+                                <p>{{ transaction.settlement_date|date:"d M Y" }}</p>
 
                                 <h6 class="text-muted">Settlement Time:</h6>
-                                <p>{{ settlement.settlement_time|time:"H:i" }}</p>
+                                <p>{{ transaction.settlement_time|time:"H:i" }}</p>
 
                                 <h6 class="text-muted">Status:</h6>
-                                <span class="badge {% if settlement.status == 'Pending' %}bg-warning{% elif settlement.status == 'Completed' %}bg-success{% else %}bg-secondary{% endif %}">
-                                    {{ settlement.status }}
+                                <span class="badge {% if transaction.status == 'pending' %}bg-warning{% elif transaction.status == 'settled' %}bg-success{% else %}bg-secondary{% endif %}">
+                                    {{ transaction.get_status_display }}
                                 </span>
                             </div>
 
                             <div class="col-md-6">
                                 <h6 class="text-muted">Purchaser Details:</h6>
                                 <p>
-                                    <strong>Name:</strong> {{ settlement.purchaser_name|default:"N/A" }} <br>
-                                    <strong>Mobile:</strong> {{ settlement.purchaser_mobile|default:"N/A" }}
+                                    <strong>Name:</strong> {{ transaction.purchaser_name|default:"N/A" }}<br>
+                                    <strong>Mobile:</strong> {{ transaction.purchaser_mobile|default:"N/A" }}
                                 </p>
 
                                 <h6 class="text-muted">Seller Details:</h6>
                                 <p>
-                                    <strong>Name:</strong> {{ settlement.seller_name|default:"N/A" }} <br>
-                                    <strong>Address:</strong> {{ settlement.seller_address|default:"N/A" }}
+                                    <strong>Name:</strong> {{ transaction.seller_name|default:"N/A" }}<br>
+                                    <strong>Address:</strong> {{ transaction.seller_address|default:"N/A" }}
                                 </p>
 
-                                <h6 class="text-muted">Property Address:</h6>
-                                <p>{{ settlement.property_address|default:"N/A" }}</p>
+                                <h6 class="text-muted">Transaction Address:</h6>
+                                <p>
+                                    {{ transaction.transaction_street_address|default:"" }}<br>
+                                    {{ transaction.transaction_suburb|default:"" }},
+                                    {{ transaction.transaction_state|default:"" }}
+                                    {{ transaction.transaction_postcode|default:"" }}
+                                </p>
 
                                 <h6 class="text-muted">Title Reference(s):</h6>
-                                <p>{{ settlement.title_reference|default:"N/A" }}</p>
+                                <p>{{ transaction.title_reference|default:"N/A" }}</p>
                             </div>
                         </div>
 
@@ -102,8 +111,8 @@
                                     </tr>
                                 </thead>
                                 <tbody>
-                                    {% if settlement.documents.all %}
-                                        {% for doc in settlement.documents.all %}
+                                    {% if transaction.documents.all %}
+                                        {% for doc in transaction.documents.all %}
                                             <tr>
                                                 <td>{{ doc.name }}</td>
                                                 <td>{{ doc.get_document_type_display }}</td>
@@ -124,8 +133,8 @@
                         </div>
 
                         <div class="mt-4">
-                            <a href="{% url 'settlements_app:edit_instruction' settlement.id %}" class="btn btn-warning">Edit Settlement</a>
-                            <a href="{% url 'settlements_app:delete_instruction' settlement.id %}" class="btn btn-danger">Delete Settlement</a>
+                            <a href="{% url 'settlements_app:edit_instruction' transaction.id %}" class="btn btn-warning">Edit Transaction</a>
+                            <a href="{% url 'settlements_app:delete_instruction' transaction.id %}" class="btn btn-danger">Delete Transaction</a>
                         </div>
                     </div>
                 </div>
@@ -135,7 +144,7 @@
 {% else %}
     <div class="container mt-5">
         <div class="alert alert-warning text-center">
-            You must be logged in to view settlement details.
+            You must be logged in to view transaction details.
         </div>
         <div class="text-center">
             <a href="{% url 'settlements_app:login' %}" class="btn btn-primary">Login</a>

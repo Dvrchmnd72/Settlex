@@ -896,9 +896,20 @@ def long_poll_messages(request):
                             status=500)
 
 
+@login_required
+@otp_required
 def send_message(request):
+    """Send a chat message to another user."""
     logger.info(
         f"User authenticated: {request.user.is_authenticated}, User: {request.user}")
+
+    if not request.user.is_authenticated:
+        logger.warning("Unauthenticated user attempted to send a message")
+        return JsonResponse(
+            {"status": "error", "message": "Authentication required"},
+            status=403,
+        )
+
     if request.method == "POST":
         try:
             logger.info(
@@ -924,7 +935,7 @@ def send_message(request):
             except User.DoesNotExist:
                 logger.error(f"Recipient with ID {recipient_id} not found")
                 return JsonResponse(
-                    {"status": "error", "message": "Invalid recipient"}, status=500)
+                    {"status": "error", "message": "Invalid recipient"}, status=404)
 
             message = ChatMessage(
                 sender=request.user,

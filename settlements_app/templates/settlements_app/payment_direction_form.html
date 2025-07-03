@@ -1,4 +1,5 @@
 {% extends 'settlements_app/base.html' %}
+{% load static %}
 
 {% block title %}Payment Directions - {{ instruction.file_reference }}{% endblock %}
 
@@ -112,7 +113,7 @@
 {% endblock %}
 
 {% block scripts %}
-<script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+<script src="{% static 'jquery-3.6.0.min.js' %}"></script>
 <script>
 $(document).ready(function () {
     // Edit button functionality for each line item

@@ -880,8 +880,10 @@ def edit_line_item(request):
     if form.is_valid():
         form.save()
         return JsonResponse({'status': 'success', 'message': 'Line item updated'})
+    else:
+        print("Edit Line Item Form Errors:", form.errors)  # Debugging output
+        return JsonResponse({'status': 'error', 'errors': form.errors}, status=400)
 
-    return JsonResponse({'status': 'error', 'errors': form.errors}, status=400)
 
 
 

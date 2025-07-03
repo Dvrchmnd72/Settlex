@@ -16,7 +16,7 @@ from .views import (
     settlement_statement_word,
     payment_direction,
 )
-from .models import Firm, Solicitor, Instruction, PaymentDirection
+from .models import Firm, Solicitor, Instruction, PaymentDirection, PaymentDirectionLineItem
 
 class SendMessageTests(TestCase):
     def setUp(self):
@@ -125,6 +125,28 @@ class PaymentDirectionViewTests(TestCase):
         pd = PaymentDirection.objects.get(instruction=self.instruction)
         self.assertEqual(pd.registration_fee, Decimal('10.00'))
         self.assertEqual(pd.pexa_fee, Decimal('20.00'))
+
+    def test_post_adds_line_item_and_stays_on_page(self):
+        data = {
+            'save_line_item': '1',
+            'category': 'professional_fees',
+            'bank_name': 'Test Bank',
+            'account_name': 'Test Account',
+            'account_details': '123456',
+            'amount': '50.00',
+        }
+        response = self._call_view('post', data)
+        self.assertEqual(response.status_code, 302)
+        self.assertEqual(
+            response.url,
+            reverse('settlements_app:payment_direction', args=[self.instruction.id])
+        )
+        item = PaymentDirectionLineItem.objects.get(payment_direction__instruction=self.instruction)
+        self.assertEqual(item.category, 'professional_fees')
+        self.assertEqual(item.bank_name, 'Test Bank')
+        self.assertEqual(item.account_name, 'Test Account')
+        self.assertEqual(item.account_details, '123456')
+        self.assertEqual(item.amount, Decimal('50.00'))
 
 
 class SettlementStatementWordTests(TestCase):

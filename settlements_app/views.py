@@ -1354,10 +1354,10 @@ def settlement_statement(request):
 
     # Log the session data for debugging
     if not data:
-        logging.error("No settlement data found in session.")
+        logger.error("No settlement data found in session.")
         return redirect('settlements_app:settlement_calculator')  # Redirect back to the calculator if no data is found
 
-    logging.info(f"Settlement Data found in session: {data}")
+    logger.info(f"Settlement Data found in session: {data}")
 
     # Convert values back to float for display
     for key in [

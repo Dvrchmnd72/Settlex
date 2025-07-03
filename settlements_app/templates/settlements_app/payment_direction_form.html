@@ -1,0 +1,163 @@
+{% extends 'settlements_app/base.html' %}
+
+{% block title %}Payment Directions - {{ instruction.file_reference }}{% endblock %}
+
+{% block inner_content %}
+<div class="container mt-4">
+    <div class="card shadow-sm">
+        <div class="card-header bg-primary text-white">
+            <h5 class="mb-0">Payment Directions for {{ instruction.file_reference }}</h5>
+        </div>
+        <div class="card-body">
+            {% if messages %}
+                {% for message in messages %}
+                    <div class="alert alert-info" role="alert">
+                        {{ message }}
+                    </div>
+                {% endfor %}
+            {% endif %}
+
+            <h5>Direction Lines</h5>
+            <div class="table-responsive">
+                <table class="table table-bordered table-hover mt-3 align-middle">
+                    <thead class="table-light">
+                        <tr>
+                            <th>Category</th>
+                            <th>Bank Name</th>
+                            <th>Account Name</th>
+                            <th>Account Details</th>
+                            <th>Amount</th>
+                            <th>Action</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for item in line_items %}
+                        <tr>
+                            <td>
+                                <input type="text" name="category" value="{{ item.get_category_display }}" class="form-control payment-field" data-item-id="{{ item.id }}" disabled>
+                            </td>
+                            <td>
+                                <input type="text" name="bank_name" value="{{ item.bank_name }}" class="form-control payment-field" data-item-id="{{ item.id }}" disabled>
+                            </td>
+                            <td>
+                                <input type="text" name="account_name" value="{{ item.account_name }}" class="form-control payment-field" data-item-id="{{ item.id }}" disabled>
+                            </td>
+                            <td>
+                                <input type="text" name="account_details" value="{{ item.account_details }}" class="form-control payment-field" data-item-id="{{ item.id }}" disabled>
+                            </td>
+                            <td>
+                                <input type="text" name="amount" value="{{ item.amount }}" class="form-control payment-field" data-item-id="{{ item.id }}" disabled>
+                            </td>
+                            <td>
+                                <div class="btn-group">
+                                    <button type="button" class="btn btn-sm btn-primary edit-line" data-item-id="{{ item.id }}">Edit</button>
+                                    <button type="button" class="btn btn-sm btn-success save-line" data-item-id="{{ item.id }}" style="display:none;">Save</button>
+                                </div>
+                            </td>
+                        </tr>
+                        {% empty %}
+                        <tr>
+                            <td colspan="6" class="text-center">No directions added yet.</td>
+                        </tr>
+                        {% endfor %}
+
+                        <!-- Total Row -->
+                        <tr>
+                            <td colspan="4" class="text-end"><strong>Total</strong></td>
+                            <td><strong>${{ total_amount|floatformat:2 }}</strong></td>
+                            <td></td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <h6 class="mt-4">Add Direction Line</h6>
+            <form method="post">
+                {% csrf_token %}
+                <input type="hidden" name="save_line_item" value="1">
+                <div class="row g-2 align-items-end">
+                    <div class="col-md-2">
+                        {{ line_item_form.category.label_tag }}
+                        {{ line_item_form.category }}
+                    </div>
+                    <div class="col-md-2">
+                        {{ line_item_form.bank_name.label_tag }}
+                        {{ line_item_form.bank_name }}
+                    </div>
+                    <div class="col-md-2">
+                        {{ line_item_form.account_name.label_tag }}
+                        {{ line_item_form.account_name }}
+                    </div>
+                    <div class="col-md-3">
+                        {{ line_item_form.account_details.label_tag }}
+                        {{ line_item_form.account_details }}
+                    </div>
+                    <div class="col-md-2">
+                        {{ line_item_form.amount.label_tag }}
+                        {{ line_item_form.amount }}
+                    </div>
+                    <div class="col-md-1">
+                        <button type="submit" class="btn btn-success">Add</button>
+                    </div>
+                </div>
+                {% if line_item_form.errors %}
+                    <div class="text-danger mt-2">
+                        {{ line_item_form.errors }}
+                    </div>
+                {% endif %}
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+<script>
+$(document).ready(function () {
+    // Edit button functionality for each line item
+    $(".edit-line").click(function () {
+        var itemId = $(this).data("item-id");
+        $("input[data-item-id='" + itemId + "']").prop('disabled', false);  // Enable input fields for the clicked line
+        $(this).hide();  // Hide the Edit button
+        $(this).siblings(".save-line").show();  // Show the Save button
+    });
+
+    // Save button functionality for each line item
+    $(".save-line").click(function () {
+        var itemId = $(this).data("item-id");
+        var category = $("input[name='category'][data-item-id='" + itemId + "']").val();
+        var bankName = $("input[name='bank_name'][data-item-id='" + itemId + "']").val();
+        var accountName = $("input[name='account_name'][data-item-id='" + itemId + "']").val();
+        var accountDetails = $("input[name='account_details'][data-item-id='" + itemId + "']").val();
+        var amount = $("input[name='amount'][data-item-id='" + itemId + "']").val();
+
+        $.ajax({
+            url: "{% url 'settlements_app:edit_line_item' %}",
+            method: "POST",
+            data: {
+                item_id: itemId,
+                category: category,
+                bank_name: bankName,
+                account_name: accountName,
+                account_details: accountDetails,
+                amount: amount,
+                csrfmiddlewaretoken: '{{ csrf_token }}',
+            },
+            success: function (response) {
+                if (response.status === 'success') {
+                    alert(response.message);
+                    location.reload(); // Reload to reflect changes in the table
+                } else {
+                    alert(response.message || "An error occurred.");
+                }
+            },
+            error: function () {
+                alert("Error saving line item.");
+            }
+        });
+    });
+});
+
+</script>
+{% endblock %}

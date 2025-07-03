@@ -1,0 +1,40 @@
+{% extends "two_factor/_base.html" %}
+
+{% block title %}My Two-Factor Settings{% endblock %}
+
+{% block content_wrapper %}
+  <div class="container py-5">
+    <div class="row justify-content-center">
+      <div class="col-md-8">
+        <div class="card shadow">
+          <div class="card-body">
+            <h3 class="text-center">🔧 Two-Factor Authentication Settings</h3>
+            <p class="text-center text-muted">
+              Manage your 2FA setup and backup codes here.
+            </p>
+
+            {% if default_device %}
+              <div class="alert alert-success text-center">
+                Two-Factor Authentication is currently <strong>enabled</strong>.
+              </div>
+              <div class="text-center">
+                <a href="{% url 'two_factor:disable' %}" class="btn btn-danger">
+                  Disable 2FA
+                </a>
+              </div>
+            {% else %}
+              <div class="alert alert-warning text-center">
+                Two-Factor Authentication is currently <strong>not enabled</strong>.
+              </div>
+              <div class="text-center">
+                <a href="{% url 'two_factor:setup' %}" class="btn btn-primary">
+                  Enable 2FA
+                </a>
+              </div>
+            {% endif %}
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+{% endblock %}

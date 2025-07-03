@@ -1,0 +1,61 @@
+{% extends 'settlements_app/base.html' %}
+{% load static %}
+
+{% block inner_content %}
+<div class="container mt-4">
+    <div class="card shadow-sm">
+        <div class="card-header bg-primary text-white">
+            <h5 class="mb-0">Settlement Statement</h5>
+        </div>
+        <div class="card-body">
+
+            <h6 class="mb-3">Key Dates & Details</h6>
+            <table class="table table-bordered">
+                <tr><th>Settlement Date</th><td>{{ data.settlement_date }}</td></tr>
+                <tr><th>Adjustment Date</th><td>{{ data.adjustment_date }}</td></tr>
+                <tr><th>Contract Date</th><td>{{ data.contract_date }}</td></tr>
+                <tr><th>Settlement Place</th><td>{{ data.settlement_place }}</td></tr>
+                <tr><th>Settlement Time</th><td>{{ data.settlement_time }}</td></tr>
+            </table>
+
+            <h6 class="mt-4 mb-3">Financial Summary</h6>
+            <table class="table table-bordered">
+                <tr><th>Contract Price</th><td>${{ data.contract_price|floatformat:2 }}</td></tr>
+                <tr><th>Deposit Paid</th><td>${{ data.deposit|floatformat:2 }}</td></tr>
+                <tr><th>Release of Mortgage Fee</th><td>${{ data.release_mortgage_fee|floatformat:2 }}</td></tr>
+                <tr><th>Registration Fee</th><td>${{ data.registration_fee|floatformat:2 }}</td></tr>
+                <tr><th>PEXA Fee</th><td>${{ data.pexa_fee|floatformat:2 }}</td></tr>
+                <tr><th>Rates Adjustment</th><td>${{ data.council_adj|floatformat:2 }}</td></tr>
+                <tr><th>Water Adjustment</th><td>${{ data.water_adj|floatformat:2 }}</td></tr>
+            </table>
+
+            <h6 class="mt-4 mb-3">Body Corporate Levies</h6>
+            <table class="table table-bordered">
+                <tr><th>Admin Fund Levy</th><td>${{ data.bodycorp_admin|floatformat:2 }}</td></tr>
+                <tr><th>Sinking Fund Levy</th><td>${{ data.bodycorp_sinking|floatformat:2 }}</td></tr>
+                <tr><th>Insurance</th><td>${{ data.bodycorp_insurance|floatformat:2 }}</td></tr>
+                <tr><th>Special Contributions</th><td>${{ data.bodycorp_special|floatformat:2 }}</td></tr>
+            </table>
+
+            <h6 class="mt-4 mb-3 text-end"><strong>Total Adjustments</strong></h6>
+            <table class="table table-bordered">
+                <tr>
+                    <th class="text-end">Total Settlement Adjustments:</th>
+                    <td class="text-end">${{ data.total_adjustments|floatformat:2 }}</td>
+                </tr>
+                <tr>
+                    <th class="text-end">Balance at Settlement:</th>
+                    <td class="text-end">${{ data.balance_at_settlement|floatformat:2 }}</td>
+                </tr>
+            </table>
+
+            <div class="text-center mt-4">
+                <button class="btn btn-success no-print" onclick="window.print()">Print/PDF</button>
+                <a href="{% url 'settlements_app:settlement_statement_word' %}" class="btn btn-primary no-print">Download Word</a>
+                <a href="{% url 'settlements_app:settlement_calculator' %}" class="btn btn-secondary">Back to Calculator</a>
+            </div>
+
+        </div>
+    </div>
+</div>
+{% endblock %}

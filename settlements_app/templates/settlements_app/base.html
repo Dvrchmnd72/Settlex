@@ -1,0 +1,657 @@
+{% load static %}
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}SettleX{% endblock %}</title>
+    <!-- Bootstrap 5 CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.0.2/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-EVSTQN3/azprG1Anm3QDgpJLIm9Nao0Yz1ztcQTwFspd3yD65VohhpuuCOmLASjC" crossorigin="anonymous">
+    <!-- Font Awesome for Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.7.2/css/all.min.css" integrity="sha384-nRgPTkuX86pH8yjPJUAFuASXQSSl2/bBUiNV47vSYpKFxHJhbcrGnmlYpYJMeD7a" crossorigin="anonymous">
+    <!-- Custom CSS -->
+    <link rel="stylesheet" href="{% static 'settlements_app/style.css' %}">
+
+    <style>
+        body { font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif; margin: 0; padding: 0; background-color: #f4f4f4; }
+        .navbar { background-color: #333; color: white; padding: 1rem; display: flex; justify-content: space-between; align-items: center; }
+        .navbar a { color: white; text-decoration: none; margin: 0 1rem; }
+        .navbar a:hover { color: #ddd; }
+        .register-login-btn { background-color: #6c757d; color: white !important; padding: 8px 15px; border-radius: 5px; text-decoration: none !important; }
+        .register-login-btn:hover { background-color: #5c636a; color: white !important; }
+        .sidebar { width: 250px; position: fixed; top: 0; left: 0; height: 100vh; background-color: #1a3c34; color: white; padding-top: 1.5rem; box-shadow: 2px 0 5px rgba(0, 0, 0, 0.1); transition: all 0.3s ease; }
+        .sidebar .logo { text-align: center; padding: 1rem 0; font-size: 1.5rem; font-weight: bold; color: #fff; }
+        .sidebar a { color: #adb5bd; text-decoration: none; display: flex; align-items: center; padding: 0.75rem 1.5rem; font-size: 1rem; transition: all 0.3s ease; }
+        .sidebar a:hover, .sidebar a.active { background-color: #2e5e55; color: white; }
+        .sidebar a i { margin-right: 0.75rem; }
+        .main-content { margin-left: 250px; padding: 0; }
+        .topbar { height: 60px; background-color: #ffffff; box-shadow: 0 2px 5px rgba(0, 0, 0, 0.05); display: flex; align-items: center; padding: 0 2rem; position: fixed; width: calc(100% - 250px); z-index: 1000; }
+        .topbar .user-info { font-size: 1rem; color: #343a40; }
+        .content-wrapper { padding: 80px 2rem 2rem 2rem; min-height: 100vh; }
+        .container { max-width: 1200px; margin: 2rem auto; padding: 0 1rem; }
+        .card { border: none; border-radius: 10px; box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05); background-color: #ffffff; transition: all 0.3s ease; }
+        .card:hover { box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1); }
+        .card-header { background-color: #f8f9fa; border-bottom: none; font-weight: 600; color: #343a40; padding: 1rem 1.5rem; border-radius: 10px 10px 0 0; }
+        .btn-primary { background-color: #1a3c34; border-color: #1a3c34; transition: all 0.3s ease; }
+        .btn-primary:hover { background-color: #2e5e55; border-color: #2e5e55; }
+        .chat-toggle { position: fixed; bottom: 20px; right: 20px; background-color: #007bff; color: white; border: none; border-radius: 50%; width: 50px; height: 50px; font-size: 24px; cursor: pointer; box-shadow: 0 2px 5px rgba(0,0,0,0.2); display: flex; align-items: center; justify-content: center; }
+        .chat-container { position: fixed; bottom: 80px; right: 20px; width: 350px; max-height: 500px; background-color: white; border-radius: 8px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); display: none; flex-direction: column; z-index: 1000; }
+        .chat-header { background-color: #007bff; color: white; padding: 1rem; border-top-left-radius: 8px; border-top-right-radius: 8px; display: flex; justify-content: space-between; align-items: center; }
+        .chat-header h3 { margin: 0; font-size: 1.2rem; }
+        .chat-close { background: none; border: none; color: white; font-size: 1.2rem; cursor: pointer; }
+        .chat-box { flex: 1; padding: 1rem; overflow-y: auto; max-height: 350px; background-color: #f9f9f9; }
+        .chat-message-container { margin-bottom: 1rem; }
+        .chat-message-header { display: flex; justify-content: space-between; align-items: center; font-size: 0.85rem; margin-bottom: 0.25rem; }
+        .admin-header { color: #007bff; }
+        .user-header { color: #28a745; }
+        .chat-username { font-weight: bold; }
+        .timestamp { color: #888; }
+        .chat-message-wrapper { position: relative; display: inline-block; max-width: 80%; padding: 0.5rem 1rem; border-radius: 12px; word-wrap: break-word; }
+        .admin-message { background-color: #007bff; color: white; margin-right: auto; }
+        .user-message { background-color: #28a745; color: white; margin-left: auto; text-align: right; }
+        .chat-message-content { margin: 0; }
+        .read-status { display: block; font-size: 0.75rem; color: #ddd; margin-top: 0.25rem; }
+        .read-status.read { color: #ffffff; }
+        .delete-button { position: absolute; top: -10px; right: -10px; background-color: #ff4d4d; color: white; border: none; border-radius: 50%; width: 20px; height: 20px; font-size: 12px; cursor: pointer; display: none; line-height: 20px; text-align: center; }
+        .typing-indicator { font-style: italic; color: #888; }
+        .chat-input-area { display: flex; align-items: center; padding: 0.5rem; border-top: 1px solid #ddd; background-color: #fff; border-bottom-left-radius: 8px; border-bottom-right-radius: 8px; }
+        .chat-input-area input[type="text"] { flex: 1; padding: 0.5rem; border: 1px solid #ddd; border-radius: 4px; margin-right: 0.5rem; font-size: 0.9rem; }
+        .chat-input-area input[type="file"] { display: none; }
+        .chat-input-area button { background-color: #007bff; color: white; border: none; padding: 0.5rem; border-radius: 4px; cursor: pointer; font-size: 0.9rem; }
+        .chat-input-area button:disabled { background-color: #cccccc; cursor: not-allowed; }
+        .emoji-button { background: none; border: none; font-size: 1.2rem; cursor: pointer; margin-right: 0.5rem; }
+        .file-upload-button { background: none; border: none; font-size: 1.2rem; cursor: pointer; margin-right: 0.5rem; }
+        .sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0, 0, 0, 0); border: 0; }
+    </style>
+    -->
+</head>
+<body>
+{% block content %}
+    {% if user.is_authenticated %}
+        <!-- Sidebar Layout for My Transactions Page -->
+        <div class="sidebar">
+            <div class="logo">
+                {% if user.solicitor and user.solicitor.firm %}
+                    {{ user.solicitor.firm.name|default:"SettleX" }}
+                {% else %}
+                    SettleX
+                {% endif %}
+            </div>
+
+            <a href="{% url 'settlements_app:home' %}" class="{% if request.path == '/settlex/' %}active{% endif %}">
+                <i class="fas fa-home"></i> Home
+            </a>
+
+            <a href="{% url 'settlements_app:my_transactions' %}" class="{% if request.path == '/settlex/my-transactions/' %}active{% endif %}">
+                <i class="fas fa-folder-open"></i> My Transactions
+            </a>
+
+            <a href="{% url 'settlements_app:new_instruction' %}" class="{% if request.path == '/settlex/new-instruction/' %}active{% endif %}">
+                <i class="fas fa-plus"></i> New Instruction
+            </a>
+
+            {% if latest_instruction %}
+                <a href="{% url 'settlements_app:upload_documents' %}?settlement_id={{ latest_instruction.id }}"
+                   class="{% if request.path|slice:":24" == '/settlex/upload-documents/' %}active{% endif %}">
+                    <i class="fas fa-upload"></i> Upload Docs
+                </a>
+            {% endif %}
+
+            <a href="{% url 'settlements_app:settlement_calculator' %}" class="{% if request.path == '/settlex/settlement-calculator/' %}active{% endif %}">
+                <i class="fas fa-balance-scale"></i> Settlement Calculator
+            </a>
+
+            {% if latest_instruction %}
+                <a href="{% url 'settlements_app:list_payment_directions' %}"
+                    class="{% if request.path == '/settlex/payment-directions/' %}active{% endif %}">
+                    <i class="fas fa-money-check-alt"></i> Payment Directions
+                </a>
+
+            {% endif %}
+
+            <a href="{% url 'settlements_app:logout' %}">
+                <i class="fas fa-sign-out-alt"></i> Logout
+            </a>
+        </div>
+
+        <!-- Main Content for My Transactions -->
+        <div class="main-content">
+            <div class="topbar">
+                <span class="user-info">Welcome, {{ user.get_full_name|default:user.username }}!</span>
+            </div>
+            <div class="content-wrapper">
+                <div class="container-fluid">
+                    {% block inner_content %}{% endblock %}
+                </div>
+            </div>
+        </div>
+
+    {% else %}
+        <!-- Navbar Layout for Homepage and Other Pages -->
+        <div class="navbar">
+            <div class="navbar-left">
+                <a href="{% url 'settlements_app:home' %}">
+                    <img src="{% static 'settlements_app/images/settlex_logo.png' %}" alt="SettleX Logo" style="height:50px;">
+                </a>
+            </div>
+            <div class="navbar-right">
+                <a class="register-login-btn" href="{% url 'settlements_app:login' %}">Register / Login</a>
+            </div>
+        </div>
+
+        <div class="container mt-5">
+            {% block general_content %}{% endblock %}
+        </div>
+    {% endif %}
+
+    <!-- Always show the chat toggle button if enable_chat is True -->
+    {% if enable_chat %}
+        <form id="csrf-form" style="display: none;">{% csrf_token %}</form>
+        <button id="chatToggle" class="chat-toggle"><i class="fas fa-comments"></i></button>
+        <div id="chatContainer" class="chat-container">
+            <div class="chat-header">
+                <h3>Chat with SettleX</h3>
+                <button id="chatClose" class="chat-close">×</button>
+            </div>
+            <div id="chatBox" class="chat-box"></div>
+            <div class="chat-input-area">
+                <button id="emojiButton" class="emoji-button" type="button">😊</button>
+                <button class="file-upload-button" type="button"><i class="fas fa-paperclip"></i></button>
+                <label for="chatMessage" class="sr-only">Type a message</label>
+                <input type="text" id="chatMessage" name="message" placeholder="Type a message..." autocomplete="off">
+                <label for="chatFile" class="sr-only">Upload a file</label>
+                <input type="file" id="chatFile" name="file">
+                <button id="sendButton">Send</button>
+            </div>
+        </div>
+    {% endif %}
+{% endblock %}
+</body>
+
+
+</body>
+    <!-- Bootstrap JS -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.0.2/dist/js/bootstrap.bundle.min.js" integrity="sha384-MrcW6ZMFYlzcLA8Nl+NtUVF0sA7MsXsP1UyJoMp4YLEuNSfAP+JcXn/tWtIaxVXM" crossorigin="anonymous"></script>
+
+    {% if enable_chat %}
+    <script defer>
+        function getCsrfToken() {
+            const csrfInput = document.querySelector("input[name='csrfmiddlewaretoken']");
+            if (csrfInput) return csrfInput.value;
+            return document.cookie.split('; ').find(row => row.startsWith('csrftoken='))?.split('=')[1] || "";
+        }
+
+        let csrfToken = getCsrfToken();
+
+        if (!csrfToken) {
+            console.error("❌ CSRF Token not found!");
+        } else {
+            console.log("CSRF Token retrieved:", csrfToken);
+        }
+
+        async function markMessagesAsRead(messageIds) {
+            if (!messageIds || messageIds.length === 0) {
+                console.log("No messages to mark as read.");
+                return;
+            }
+            try {
+                const response = await fetch("{% url 'settlements_app:mark_messages_read' %}", {
+                    method: "POST",
+                    headers: {
+                        "Content-Type": "application/json",
+                        "X-CSRFToken": csrfToken,
+                    },
+                    body: JSON.stringify({ message_ids: messageIds }),
+                });
+
+                if (!response.ok) {
+                    throw new Error(`HTTP error! Status: ${response.status}`);
+                }
+
+                const data = await response.json();
+                console.log("Messages marked as read:", data);
+                return data;
+            } catch (error) {
+                console.error("Error marking messages as read:", error);
+                throw error;
+            }
+        }
+
+        function toggleChat() {
+            const chatContainer = document.getElementById("chatContainer");
+            if (chatContainer) {
+                console.log("Before toggle - chatContainer display:", chatContainer.style.display);
+                const currentDisplay = chatContainer.style.display || window.getComputedStyle(chatContainer).display;
+                chatContainer.style.display = (currentDisplay === "none" || currentDisplay === "") ? "flex" : "none";
+                console.log("After toggle - chatContainer display:", chatContainer.style.display);
+            } else {
+                console.error("❌ Chat container not found.");
+            }
+        }
+
+        let lastMessageId = 0;
+
+        function fetchMessages() {
+    Promise.all([
+        fetch(`{% url 'settlements_app:long_poll_messages' %}?last_message_id=${lastMessageId}`, { credentials: "include" }),
+        fetch("{% url 'settlements_app:check_typing_status' %}", { credentials: "include" })
+    ])
+    .then(async responses => {
+        const jsonResponses = [];
+        for (const res of responses) {
+            const contentType = res.headers.get("content-type") || "";
+            const raw = await res.text();
+            if (!res.ok || !contentType.includes("application/json")) {
+                console.error(`❌ fetchMessages error: HTTP ${res.status}`, raw);
+                throw new Error(`Unexpected response format or status code: ${res.status}`);
+            }
+            jsonResponses.push(JSON.parse(raw));
+        }
+        return jsonResponses;
+    })
+    .then(([messageData, typingData]) => {
+        const messages = messageData.messages || [];
+        if (!messages.length && !typingData.is_typing) return;
+
+        let chatBox = document.getElementById("chatBox");
+        if (!chatBox) return;
+
+        let unreadMessageIds = [];
+        let existingMessages = new Set([...document.querySelectorAll(".chat-message-wrapper")].map(el => el.dataset.messageId));
+
+        const existingTyping = document.querySelector(".typing-indicator");
+        if (existingTyping) existingTyping.remove();
+
+        if (typingData.is_typing) {
+            let typingContainer = document.createElement("div");
+            typingContainer.className = "chat-message-container";
+            let typingMessage = document.createElement("div");
+            typingMessage.className = "chat-message-wrapper admin-message typing-indicator";
+            typingMessage.innerText = "SettleX is typing...";
+            typingContainer.appendChild(typingMessage);
+            chatBox.appendChild(typingContainer);
+            chatBox.scrollTop = chatBox.scrollHeight;
+        }
+
+        messages.forEach(msg => {
+            if (msg.id > lastMessageId) {
+                lastMessageId = msg.id;
+            }
+
+            if (!existingMessages.has(msg.id.toString())) {
+                console.log("New message data:", msg);
+                let messageContainer = document.createElement("div");
+                messageContainer.className = "chat-message-container";
+
+                let messageHeader = document.createElement("div");
+                messageHeader.className = "chat-message-header";
+                if (msg.sender_name.trim().toLowerCase() === "settlex") {
+                    messageHeader.classList.add("admin-header");
+                } else {
+                    messageHeader.classList.add("user-header");
+                }
+
+                let usernameSpan = document.createElement("span");
+                usernameSpan.className = "chat-username";
+                usernameSpan.innerText = msg.sender_name;
+
+                let timestampSpan = document.createElement("span");
+                timestampSpan.className = "timestamp";
+                timestampSpan.innerText = msg.timestamp;
+
+                let messageWrapper = document.createElement("div");
+                if (msg.sender_name.trim().toLowerCase() === "settlex") {
+                    messageWrapper.className = "chat-message-wrapper admin-message";
+                } else {
+                    messageWrapper.className = "chat-message-wrapper user-message";
+                }
+                messageWrapper.dataset.messageId = msg.id;
+
+                let newMessage = document.createElement("p");
+                newMessage.className = "chat-message-content";
+                if (msg.file_url) {
+                    let link = document.createElement("a");
+                    link.href = msg.file_url;
+                    link.innerText = "Uploaded File";
+                    link.target = "_blank";
+                    newMessage.appendChild(link);
+                } else {
+                    newMessage.innerHTML = msg.message;
+                }
+
+                let readStatus = document.createElement("span");
+                readStatus.className = "read-status";
+                const normalizedSender = msg.sender_name.trim().toLowerCase().replace(/\s+/g, '');
+                const normalizedUser = "{{ user.username|lower }}".replace(/\s+/g, '');
+                console.log(`Comparing normalized sender: "${normalizedSender}" with user: "${normalizedUser}", is_read: ${msg.is_read}`);
+                if (normalizedSender === "settlex") {
+                    readStatus.classList.remove("read");
+                    readStatus.innerText = "";
+                } else if (normalizedSender === normalizedUser) {
+                    if (msg.is_read) {
+                        readStatus.classList.add("read");
+                        readStatus.innerText = "Read";
+                    } else {
+                        readStatus.classList.remove("read");
+                        readStatus.innerText = "";
+                    }
+                } else if (msg.is_read) {
+                    readStatus.classList.add("read");
+                    readStatus.innerText = "Read";
+                } else {
+                    readStatus.classList.remove("read");
+                    readStatus.innerText = "";
+                }
+
+                let deleteButton = document.createElement("button");
+                deleteButton.className = "delete-button";
+                deleteButton.innerText = "×";
+                deleteButton.style.display = (msg.sender_name.trim().toLowerCase() !== "settlex" && normalizedSender === normalizedUser) ? "inline" : "none";
+                deleteButton.addEventListener("click", () => deleteMessage(msg.id));
+
+                messageHeader.appendChild(usernameSpan);
+                messageHeader.appendChild(timestampSpan);
+                messageContainer.appendChild(messageHeader);
+                messageWrapper.appendChild(newMessage);
+                messageWrapper.appendChild(readStatus);
+                if (deleteButton.style.display === "inline") messageWrapper.appendChild(deleteButton);
+                messageContainer.appendChild(messageWrapper);
+
+                chatBox.appendChild(messageContainer);
+                chatBox.scrollTop = chatBox.scrollHeight;
+
+                if (!msg.is_read && normalizedSender !== normalizedUser) {
+                    unreadMessageIds.push(msg.id);
+                }
+            } else {
+                const existingWrapper = document.querySelector(`.chat-message-wrapper[data-message-id='${msg.id}'] .read-status`);
+                if (existingWrapper) {
+                    const normalizedSender = msg.sender_name.trim().toLowerCase().replace(/\s+/g, '');
+                    const normalizedUser = "{{ user.username|lower }}".replace(/\s+/g, '');
+                    const currentReadStatus = existingWrapper.classList.contains("read");
+                    const shouldBeRead = (normalizedSender !== "settlex" && ((normalizedSender === normalizedUser && msg.is_read) || (normalizedSender !== normalizedUser && msg.is_read)));
+                    if (currentReadStatus !== shouldBeRead) {
+                        console.log("Existing message data:", msg);
+                        console.log(`Updating existing message ${msg.id}: normalized sender: "${normalizedSender}", user: "${normalizedUser}", is_read: ${msg.is_read}`);
+                        if (normalizedSender === "settlex") {
+                            existingWrapper.classList.remove("read");
+                            existingWrapper.innerText = "";
+                        } else if (normalizedSender === normalizedUser) {
+                            if (msg.is_read) {
+                                existingWrapper.classList.add("read");
+                                existingWrapper.innerText = "Read";
+                            } else {
+                                existingWrapper.classList.remove("read");
+                                existingWrapper.innerText = "";
+                            }
+                        } else if (msg.is_read) {
+                            existingWrapper.classList.add("read");
+                            existingWrapper.innerText = "Read";
+                        } else {
+                            existingWrapper.classList.remove("read");
+                            existingWrapper.innerText = "";
+                        }
+                    }
+                }
+            }
+        });
+
+        if (unreadMessageIds.length > 0) {
+            if (typeof markMessagesAsRead === "function") {
+                markMessagesAsRead(unreadMessageIds).catch(error => {
+                    console.error("Failed to mark messages as read:", error);
+                });
+            } else {
+                console.error("markMessagesAsRead is not defined!");
+            }
+        }
+    })
+    .catch(error => {
+        console.error("❌ fetchMessages error:", error);
+    });
+}
+
+
+        function sendMessage(event) {
+            event.preventDefault();
+            let messageText = document.getElementById("chatMessage").value.trim();
+            let file = document.getElementById("chatFile").files[0];
+            if (!messageText && !file) {
+                console.error("❌ No message or file entered!");
+                return;
+            }
+
+            const sendButton = document.getElementById("sendButton");
+            sendButton.disabled = true;
+
+            let formData = new FormData();
+            formData.append("message", messageText);
+            if (file) formData.append("file", file);
+            const adminUserId = "{{ admin_user_id|default:'3' }}";
+            console.log("Admin User ID:", adminUserId);
+            if (adminUserId) {
+                formData.append("recipient", adminUserId);
+            } else {
+                console.error("❌ Admin user ID not found!");
+                return;
+            }
+
+            console.log("Sending message with CSRF Token:", csrfToken);
+            fetch("{% url 'settlements_app:send_message' %}", {
+                method: "POST",
+                headers: {
+                    "X-CSRFToken": csrfToken
+                },
+                credentials: "include",
+                body: formData
+            })
+            .then(response => {
+                console.log("Response status:", response.status);
+                if (!response.ok) throw new Error("Network response was not ok");
+                return response.json();
+            })
+            .then(data => {
+                console.log("✅ Server response:", data);
+                if (data.status === "success") {
+                    console.log("✅ Message sent successfully!");
+                    const newMessage = data;
+                    let chatBox = document.getElementById("chatBox");
+                    let messageContainer = document.createElement("div");
+                    messageContainer.className = "chat-message-container";
+
+                    let messageHeader = document.createElement("div");
+                    messageHeader.className = "chat-message-header user-header";
+
+                    let usernameSpan = document.createElement("span");
+                    usernameSpan.className = "chat-username";
+                    const senderName = "{{ user.get_full_name|default:user.username }}";
+                    usernameSpan.innerText = senderName;
+
+                    let timestampSpan = document.createElement("span");
+                    timestampSpan.className = "timestamp";
+                    timestampSpan.innerText = new Date().toLocaleString();
+
+                    let messageWrapper = document.createElement("div");
+                    messageWrapper.className = "chat-message-wrapper user-message";
+                    messageWrapper.dataset.messageId = data.id;
+
+                    let newMessageContent = document.createElement("p");
+                    newMessageContent.className = "chat-message-content";
+                    if (file) {
+                        let link = document.createElement("a");
+                        link.href = data.file_url || "#";
+                        link.innerText = "Uploaded File";
+                        link.target = "_blank";
+                        newMessageContent.appendChild(link);
+                    } else {
+                        newMessageContent.innerHTML = messageText;
+                    }
+
+                    let readStatus = document.createElement("span");
+                    readStatus.className = "read-status";
+                    const normalizedSender = senderName.trim().toLowerCase().replace(/\s+/g, '');
+                    if (normalizedSender === "settlex") {
+                        readStatus.classList.remove("read");
+                        readStatus.innerText = "";
+                    } else if (!data.is_read) {
+                        readStatus.classList.remove("read");
+                        readStatus.innerText = "";
+                    }
+
+                    let deleteButton = document.createElement("button");
+                    deleteButton.className = "delete-button";
+                    deleteButton.innerText = "×";
+                    deleteButton.style.display = "inline";
+                    deleteButton.addEventListener("click", () => deleteMessage(data.id));
+
+                    messageHeader.appendChild(usernameSpan);
+                    messageHeader.appendChild(timestampSpan);
+                    messageContainer.appendChild(messageHeader);
+                    messageWrapper.appendChild(newMessageContent);
+                    messageWrapper.appendChild(readStatus);
+                    messageWrapper.appendChild(deleteButton);
+                    messageContainer.appendChild(messageWrapper);
+
+                    chatBox.appendChild(messageContainer);
+                    chatBox.scrollTop = chatBox.scrollHeight;
+
+                    fetchMessages();
+                } else {
+                    console.error("❌ Error sending message:", data.message);
+                }
+            })
+            .catch(error => console.error("❌ Network error:", error))
+            .finally(() => {
+                sendButton.disabled = false;
+                document.getElementById("chatMessage").value = "";
+                document.getElementById("chatFile").value = "";
+            });
+        }
+
+        function deleteMessage(messageId) {
+            if (!confirm("Are you sure you want to delete this message?")) return;
+            fetch("{% url 'settlements_app:delete_message' %}", {
+                method: "POST",
+                headers: {
+                    "X-CSRFToken": csrfToken,
+                    "Content-Type": "application/json"
+                },
+                body: JSON.stringify({ message_id: messageId })
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.status === "success") {
+                    const messageWrapper = document.querySelector(`.chat-message-wrapper[data-message-id='${messageId}']`);
+                    if (messageWrapper) messageWrapper.parentElement.remove();
+                    fetchMessages();
+                } else {
+                    console.error("❌ Error deleting message:", data.message);
+                }
+            })
+            .catch(error => console.error("❌ Error deleting message:", error));
+        }
+
+        document.addEventListener("DOMContentLoaded", function () {
+            console.log("✅ JavaScript loaded successfully");
+
+            console.log("Window.EmojiButton:", window.EmojiButton);
+            console.log("Window keys:", Object.keys(window).filter(key => key.toLowerCase().includes('emoji')));
+
+            const chatToggle = document.getElementById("chatToggle");
+            const chatClose = document.getElementById("chatClose");
+            const messageInput = document.getElementById("chatMessage");
+            const sendButton = document.getElementById("sendButton");
+            const chatFile = document.getElementById("chatFile");
+            const emojiButton = document.getElementById("emojiButton");
+
+            if (chatToggle) {
+                console.log("chatToggle found, attaching event listener");
+                chatToggle.addEventListener("click", () => {
+                    console.log("chatToggle clicked!");
+                    toggleChat();
+                });
+            } else {
+                console.error("❌ Chat toggle button not found.");
+            }
+
+            if (chatClose) {
+                chatClose.addEventListener("click", function () {
+                    const chatContainer = document.getElementById("chatContainer");
+                    chatContainer.style.display = "none";
+                });
+            }
+
+            import("https://cdn.jsdelivr.net/npm/@joeattardi/emoji-button@4.6.4/dist/index.min.js")
+                .then(module => {
+                    const EmojiButton = module.EmojiButton;
+                    console.log("EmojiButton loaded:", EmojiButton);
+
+                    const picker = new EmojiButton({
+                        position: 'auto',
+                        theme: 'dark',
+                        autoClose: true
+                    });
+                    console.log("EmojiButton picker created:", picker);
+
+                    emojiButton.addEventListener('click', () => {
+                        console.log("Emoji button clicked!");
+                        picker.togglePicker(emojiButton);
+                        setTimeout(() => {
+                            const searchInput = document.querySelector('.emoji-picker__search');
+                            if (searchInput) {
+                                searchInput.setAttribute('id', 'emojiSearch');
+                                searchInput.setAttribute('name', 'emoji_search');
+                                console.log("Added id and name to emoji search input");
+
+                                const existingLabel = document.querySelector('label[for="emojiSearch"]');
+                                if (!existingLabel) {
+                                    const label = document.createElement('label');
+                                    label.setAttribute('for', 'emojiSearch');
+                                    label.className = 'sr-only';
+                                    label.textContent = 'Search emojis';
+                                    searchInput.parentNode.insertBefore(label, searchInput);
+                                    console.log("Added accessibility label for emoji search input");
+                                }
+                            } else {
+                                console.log("Emoji search input not found");
+                            }
+                        }, 100);
+                    });
+
+                    picker.on('emoji', (selection) => {
+                        console.log("Emoji selected:", selection.emoji);
+                        messageInput.value += selection.emoji;
+                    });
+                })
+                .catch(error => {
+                    console.error("❌ Failed to load EmojiButton:", error);
+                });
+
+            document.querySelector('.chat-input-area').addEventListener('click', (e) => {
+                if (e.target.tagName === 'BUTTON' && e.target !== sendButton && e.target !== emojiButton) {
+                    chatFile.click();
+                }
+            });
+
+            chatFile.addEventListener('click', () => {
+                if (chatFile.files[0]) {
+                    sendMessage(new Event('submit'));
+                }
+            });
+
+            sendButton.addEventListener("click", sendMessage);
+            messageInput.addEventListener("keypress", function (event) {
+                if (event.key === "Enter") {
+                    event.preventDefault();
+                    sendMessage(event);
+                }
+            });
+
+            setInterval(fetchMessages, 5000);
+            fetchMessages();
+        });
+    </script>
+    {% endif %}
+</body>
+</html>

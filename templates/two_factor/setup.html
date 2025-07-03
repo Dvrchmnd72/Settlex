@@ -1,0 +1,97 @@
+{% extends "two_factor/_base.html" %}
+
+{% block title %}Set Up Two-Factor Authentication – SettleX{% endblock %}
+
+{% block content %}
+<div class="container py-5">
+  <div class="row justify-content-center">
+    <div class="col-md-8 col-lg-6">
+      <div class="card shadow-sm border-0">
+        <div class="card-body text-center px-4 py-5">
+
+          <h2 class="mb-3 fw-bold">🔐 Enable Two-Factor Authentication</h2>
+
+          <!-- DEBUG: Current step = {{ wizard.steps.current }} -->
+
+          {% if wizard.steps.current == 'welcome' %}
+            <p class="lead text-muted mb-4">
+              For your security, we use 2FA to verify it's really you.
+              You’ll use an app like <strong>Google Authenticator</strong> to scan a QR code and get a secure 6-digit login code.
+            </p>
+
+            <div class="text-start small text-muted mb-4">
+              <ul class="list-unstyled">
+                <li>📱 <strong>Step 1:</strong> Open your authenticator app</li>
+                <li>📷 <strong>Step 2:</strong> Scan the QR code we'll show you</li>
+                <li>🔢 <strong>Step 3:</strong> Enter the 6-digit code to confirm</li>
+              </ul>
+            </div>
+
+            <form method="post">
+              {% csrf_token %}
+              {{ wizard.management_form }}
+              <button type="submit" class="btn btn-primary btn-lg w-100">Let’s Get Started</button>
+            </form>
+
+          {% elif wizard.steps.current == 'generator' %}
+            <p class="text-muted mb-4">
+              Use your authenticator app to scan the QR code below or enter the key manually.
+            </p>
+
+            {% if form.qr_code %}
+              <img src="data:image/png;base64,{{ form.qr_code|safe }}" alt="QR Code" class="img-fluid mb-3 border rounded p-2">
+              <p class="text-muted small">
+                Can’t scan it? Enter this key manually:<br>
+                <strong>{{ totp_secret }}</strong>
+              </p>
+            {% else %}
+              <p class="text-danger">⚠️ QR code could not be generated.</p>
+            {% endif %}
+
+            <form method="post">
+              {% csrf_token %}
+              {{ wizard.management_form }}
+              {{ wizard.form.non_field_errors }}
+
+              {% for field in wizard.form.visible_fields %}
+                <div class="mb-3 text-start">
+                  <label for="{{ field.id_for_label }}" class="form-label">{{ field.label }}</label>
+                  {{ field }}
+                  {{ field.errors }}
+                </div>
+              {% endfor %}
+
+              <button type="submit" class="btn btn-primary w-100">Continue</button>
+            </form>
+
+          {% elif wizard.steps.current == 'validation' %}
+            <p class="text-muted mb-4">
+              Enter the 6-digit code from your authenticator app to verify your identity.
+            </p>
+
+            <form method="post">
+              {% csrf_token %}
+              {{ wizard.management_form }}
+              {{ wizard.form.non_field_errors }}
+
+              {% for field in wizard.form.visible_fields %}
+                <div class="mb-3 text-start">
+                  <label for="{{ field.id_for_label }}" class="form-label">{{ field.label }}</label>
+                  {{ field }}
+                  {{ field.errors }}
+                </div>
+              {% endfor %}
+
+              <button type="submit" class="btn btn-primary w-100">Verify</button>
+            </form>
+
+          {% else %}
+            <p class="text-danger">⚠️ Unknown step: {{ wizard.steps.current }}</p>
+          {% endif %}
+
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

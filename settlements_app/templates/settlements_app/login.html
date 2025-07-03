@@ -1,0 +1,47 @@
+{% extends 'settlements_app/base_auth.html' %}
+{% load static %}
+
+{% block title %}Login - SettleX{% endblock %}
+
+{% block general_content %}
+<h2 class="card-title text-center mb-4">Login to SettleX</h2>
+<p class="text-center text-muted">Current Step: {{ wizard.steps.current }}</p>
+
+{% if messages %}
+    {% for message in messages %}
+        <div class="alert {% if message.tags == 'error' %}alert-danger{% else %}alert-{{ message.tags }}{% endif %}" role="alert">
+            {{ message }}
+        </div>
+    {% endfor %}
+{% endif %}
+
+<div class="form-inner">
+    {% for field in form %}
+        <div class="mb-3">
+            <label for="{{ field.id_for_label }}" class="form-label">{{ field.label }}</label>
+
+            <!-- Temporarily render raw widget -->
+            {{ field.as_widget }}
+
+            <!-- Print raw HTML for inspection -->
+            <pre>{{ field }}</pre>
+
+            {% if field.help_text %}
+                <div class="form-text">{{ field.help_text }}</div>
+            {% endif %}
+            {% for error in field.errors %}
+                <div class="text-danger">{{ error }}</div>
+            {% endfor %}
+        </div>
+    {% endfor %}
+</div>
+
+    <button type="submit" class="btn btn-primary w-100">Login</button>
+</form>
+
+
+<div class="text-center mt-3">
+    <p>Don't have an account? <a href="{% url 'settlements_app:register' %}">Register here</a>.</p>
+    <p><a href="{% url 'settlements_app:password_reset' %}">Forgotten Password?</a></p>
+</div>
+{% endblock %}

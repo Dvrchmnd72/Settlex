@@ -1,0 +1,254 @@
+<!DOCTYPE html>
+{% extends 'settlements_app/base.html' %}
+{% load static %}
+
+{% block inner_content %}
+<div class="container mt-4">
+    <div class="card shadow-sm">
+        <div class="card-header bg-primary text-white">
+            <h5 class="mb-0">New Instruction</h5>
+        </div>
+        <div class="card-body">
+            <form id="instructionForm" action="{% url 'settlements_app:new_instruction' %}" method="post">
+                {% csrf_token %}
+
+                <!-- File Reference -->
+                <div class="row mb-3">
+                    <div class="col-md-6">
+                        <label class="form-label">File Reference</label>
+                        <input type="text" class="form-control" name="file_reference" required>
+                    </div>
+                </div>
+
+                <!-- Transaction Type -->
+                <div class="row mb-3">
+                    <div class="col-md-6">
+                        <label class="form-label">Transaction</label>
+                        <select class="form-select" name="instruction_type" id="instruction_type" required>
+                            <option value="purchase" selected>Purchase</option>
+                            <option value="sale">Sale</option>
+                            <option value="register_mortgage">Register Mortgage</option>
+                            <option value="discharge_mortgage">Discharge Mortgage</option>
+                        </select>
+                    </div>
+                </div>
+
+                <!-- Property Type -->
+                <div class="row mb-3">
+                    <div class="col-md-6">
+                        <label class="form-label">Property Type</label>
+                        <select class="form-select" name="property_type" required>
+                            <option value="">Select</option>
+                            <option value="house">House</option>
+                            <option value="unit">Unit/Townhouse</option>
+                            <option value="vacant_land">Vacant Land</option>
+                            <option value="commercial">Commercial</option>
+                        </select>
+                    </div>
+                </div>
+
+                <!-- Transaction Address -->
+                <div class="row mb-3">
+                    <div class="col-md-2">
+                        <label class="form-label">Street No.</label>
+                        <input type="text" class="form-control" name="transaction_street_number" required>
+                    </div>
+                    <div class="col-md-6">
+                        <label class="form-label">Street Name</label>
+                        <input type="text" class="form-control" name="transaction_street_name" required>
+                    </div>
+                    <div class="col-md-4">
+                        <label class="form-label">Suburb</label>
+                        <input type="text" class="form-control" name="transaction_suburb" required>
+                    </div>
+                </div>
+                <div class="row mb-3">
+                    <div class="col-md-4">
+                        <label class="form-label">State</label>
+                        <input type="text" class="form-control" name="transaction_state" required>
+                    </div>
+                    <div class="col-md-4">
+                        <label class="form-label">Postcode</label>
+                        <input type="text" class="form-control" name="transaction_postcode" required>
+                    </div>
+                </div>
+
+                <!-- Title Reference -->
+                <div class="row mb-3">
+                    <div class="col-md-12">
+                        <label class="form-label">Title Reference(s)</label>
+                        <input type="text" class="form-control" name="title_reference" required>
+                    </div>
+                </div>
+
+                <!-- Date Fields -->
+                <div class="row mb-3 d-none" id="settlementDateRow">
+                    <div class="col-md-6">
+                        <label class="form-label">Settlement Date</label>
+                        <input type="date" class="form-control" name="settlement_date">
+                    </div>
+                </div>
+                <div class="row mb-3 d-none" id="lodgementDateRow">
+                    <div class="col-md-6">
+                        <label class="form-label">Lodgement Date</label>
+                        <input type="date" class="form-control" name="lodgement_date">
+                    </div>
+                </div>
+
+                <!-- Client Type -->
+                <div class="row mb-3">
+                    <div class="col-md-6">
+                        <label class="form-label">Client Type</label>
+                        <select class="form-select" name="client" id="client" required>
+                            <option value="">Select</option>
+                            <option value="individual">Individual(s)</option>
+                            <option value="company">Company</option>
+                        </select>
+                    </div>
+                </div>
+
+                <!-- Individual Fields -->
+                <div id="individualFields" class="d-none">
+                    <div class="row mb-3">
+                        <div class="col-md-6">
+                            <label class="form-label">Number of Individuals</label>
+                            <select class="form-select" id="num_individuals" name="num_individuals">
+                                <option value="">Select</option>
+                                {% for i in "12345" %}<option value="{{ i }}">{{ i }}</option>{% endfor %}
+                            </select>
+                        </div>
+                    </div>
+
+                    <div id="individualDetailsFields">
+                        {% for i in "12345" %}
+                        <div class="individual-row d-none" id="individual_row_{{ i }}">
+                            <h6>Individual {{ i }}</h6>
+                            <div class="row mb-3">
+                                <div class="col-md-6">
+                                    <label class="form-label">Full Name</label>
+                                    <input type="text" class="form-control" name="individual_name_{{ i }}">
+                                </div>
+                                <div class="col-md-6">
+                                    <label class="form-label">Date of Birth</label>
+                                    <input type="date" class="form-control" name="individual_dob_{{ i }}">
+                                </div>
+                            </div>
+                            <div class="row mb-3">
+                                <div class="col-md-6">
+                                    <label class="form-label">Email</label>
+                                    <input type="email" class="form-control" name="individual_email_{{ i }}">
+                                </div>
+                                <div class="col-md-6">
+                                    <label class="form-label">Mobile</label>
+                                    <input type="text" class="form-control" name="individual_mobile_{{ i }}">
+                                </div>
+                            </div>
+                            <div class="row mb-3">
+                                <div class="col-md-8">
+                                    <label class="form-label">Street Address</label>
+                                    <input type="text" class="form-control" name="individual_address_{{ i }}">
+                                </div>
+                                <div class="col-md-4">
+                                    <label class="form-label">Suburb</label>
+                                    <input type="text" class="form-control" name="individual_suburb_{{ i }}">
+                                </div>
+                            </div>
+                            <div class="row mb-3">
+                                <div class="col-md-4">
+                                    <label class="form-label">State</label>
+                                    <input type="text" class="form-control" name="individual_state_{{ i }}">
+                                </div>
+                                <div class="col-md-4">
+                                    <label class="form-label">Postcode</label>
+                                    <input type="text" class="form-control" name="individual_postcode_{{ i }}">
+                                </div>
+                            </div>
+                            <hr>
+                        </div>
+                        {% endfor %}
+                    </div>
+                </div>
+
+                <!-- Company Fields -->
+                <div id="companyFields" class="d-none">
+                    <h5>Company Details</h5>
+                    <div class="row mb-3">
+                        <div class="col-md-6">
+                            <label class="form-label">Company Name</label>
+                            <input type="text" class="form-control" name="company_name">
+                        </div>
+                        <div class="col-md-3">
+                            <label class="form-label">ABN</label>
+                            <input type="text" class="form-control" name="company_abn">
+                        </div>
+                        <div class="col-md-3">
+                            <label class="form-label">ACN</label>
+                            <input type="text" class="form-control" name="company_acn">
+                        </div>
+                    </div>
+
+                    <div class="row mb-3">
+                        <div class="col-md-8">
+                            <label class="form-label">Street Address</label>
+                            <input type="text" class="form-control" name="company_street">
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label">Suburb</label>
+                            <input type="text" class="form-control" name="company_suburb">
+                        </div>
+                    </div>
+
+                    <div class="row mb-3">
+                        <div class="col-md-4">
+                            <label class="form-label">State</label>
+                            <input type="text" class="form-control" name="company_state">
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label">Postcode</label>
+                            <input type="text" class="form-control" name="company_postcode">
+                        </div>
+                    </div>
+                </div>
+
+                <div class="text-center mt-4">
+                    <button type="submit" class="btn btn-primary w-30">Submit Instruction</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+    const instructionType = document.getElementById('instruction_type');
+    const client = document.getElementById('client');
+    const numIndividuals = document.getElementById('num_individuals');
+
+    function toggleDateFields() {
+        const type = instructionType.value;
+        document.getElementById('settlementDateRow').classList.add('d-none');
+        document.getElementById('lodgementDateRow').classList.add('d-none');
+        if (type === 'purchase' || type === 'sale') {
+            document.getElementById('settlementDateRow').classList.remove('d-none');
+        } else {
+            document.getElementById('lodgementDateRow').classList.remove('d-none');
+        }
+    }
+    instructionType.addEventListener('change', toggleDateFields);
+    toggleDateFields();
+
+    client.addEventListener('change', function () {
+        document.getElementById('individualFields').classList.toggle('d-none', client.value !== 'individual');
+        document.getElementById('companyFields').classList.toggle('d-none', client.value !== 'company');
+    });
+
+    numIndividuals?.addEventListener('change', function () {
+        const count = parseInt(numIndividuals.value) || 0;
+        document.querySelectorAll('.individual-row').forEach(row => row.classList.add('d-none'));
+        for (let i = 1; i <= count; i++) {
+            document.getElementById(`individual_row_${i}`).classList.remove('d-none');
+        }
+    });
+});
+</script>
+{% endblock %}

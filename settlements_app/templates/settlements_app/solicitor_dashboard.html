@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    {% load static %}  <!-- ✅ Load static files -->
+
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Solicitor Dashboard</title>
+    <link rel="stylesheet" href="{% static 'settlements_app/style.css' %}">
+</head>
+<body>
+    <div class="sidebar-sticky">
+        <h5 class="sidebar-heading px-3 mt-3 mb-1 text-muted">
+            {{ solicitor.firm_name|default:"Your Firm" }}  <!-- ✅ Use solicitor.firm_name safely -->
+        </h5>
+        <ul class="nav flex-column">
+            <li class="nav-item">
+                <a class="nav-link" href="{% url 'solicitor_dashboard' %}">Dashboard</a>
+            </li>
+            <li class="nav-item">
+                <a class="nav-link" href="{% url 'new_instruction' %}">New Instruction</a>
+            </li>
+            <li class="nav-item">
+                <a class="nav-link" href="{% url 'settlements_app:upload_documents' %}">Upload Documents</a>
+            </li>
+            <li class="nav-item">
+                <a class="nav-link" href="{% url 'my_settlements' %}">My Settlements</a>
+            </li>
+            <li class="nav-item">
+                <a class="nav-link text-danger" href="{% url 'logout' %}">Logout</a>
+            </li>
+        </ul>
+    </div>
+</body>
+</html>
+

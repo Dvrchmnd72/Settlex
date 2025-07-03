@@ -1,0 +1,96 @@
+{% extends 'two_factor/_base.html' %}
+{% load static %}
+
+{% block title %}Login – SettleX{% endblock %}
+
+{% block content %}
+<div class="auth-wrapper d-flex justify-content-center align-items-center" style="min-height: 100vh; background-color: #f1f1f1;">
+  <div class="auth-card p-4 shadow rounded-4 bg-white" style="max-width: 400px; width: 100%;">
+
+    <!-- Logo -->
+    <div class="text-center mb-4">
+      <img src="{% static 'settlements_app/images/settlex_logo.png' %}" alt="SettleX Logo" style="max-height: 80px;">
+    </div>
+
+    {% if messages %}
+      {% for message in messages %}
+        <div class="alert {% if message.tags == 'error' %}alert-danger{% else %}alert-{{ message.tags }}{% endif %}" role="alert">
+          {{ message }}
+        </div>
+      {% endfor %}
+    {% endif %}
+
+    <form method="post" class="login-form">
+      {% csrf_token %}
+      {{ wizard.management_form }}
+
+      {% if wizard.steps.current == 'auth' %}
+        <div class="form-inner">
+          <!-- Email Field -->
+          <div class="mb-3">
+            <label for="id_auth-username" class="form-label">Email</label>
+            <input type="text" name="auth-username" id="id_auth-username" class="form-control" required>
+          </div>
+
+          <!-- Password Field with Toggle -->
+          <div class="mb-3">
+            <label for="id_auth-password" class="form-label">Password</label>
+            <div class="input-group align-items-center">
+              <input type="password" name="auth-password" id="id_auth-password" class="form-control" required>
+              <span class="input-group-text" id="togglePassword" role="button" aria-label="Toggle password visibility" tabindex="0" style="cursor: pointer;">
+                <i class="fa-solid fa-eye" id="toggleIcon" style="color: #b5893e; font-size: 1.2rem;"></i>
+              </span>
+            </div>
+          </div>
+
+          <!-- Remember Me -->
+          <div class="form-check mb-3">
+            <input class="form-check-input" type="checkbox" value="" id="rememberMe">
+            <label class="form-check-label" for="rememberMe">Remember me</label>
+          </div>
+        </div>
+
+      {% elif wizard.steps.current == 'token' %}
+        <!-- 2FA Field -->
+        <div class="mb-3">
+          <label for="id_token-otp_token" class="form-label">Authentication Code</label>
+          {{ wizard.form.otp_token }}
+          <div class="form-text">Enter the 6-digit code from your authenticator app.</div>
+        </div>
+      {% endif %}
+
+      <button type="submit" class="btn btn-warning w-100 text-dark fw-bold">Login</button>
+    </form>
+
+    {% if wizard.steps.current == 'auth' %}
+      <div class="text-center mt-3">
+        <p>Don’t have an account? <a href="{% url 'settlements_app:register' %}" class="text-decoration-none" style="color: #c79833;">Register here</a>.</p>
+        <p><a href="{% url 'settlements_app:password_reset' %}" class="text-decoration-none" style="color: #e0b74f;">Forgotten Password?</a></p>
+      </div>
+    {% endif %}
+  </div>
+</div>
+
+<!-- Password toggle script with accessibility -->
+<script>
+  document.addEventListener("DOMContentLoaded", function () {
+    const toggleButton = document.getElementById('togglePassword');
+    const passwordInput = document.getElementById('id_auth-password');
+    const icon = document.getElementById('toggleIcon');
+
+    function togglePassword() {
+      const type = passwordInput.getAttribute('type') === 'password' ? 'text' : 'password';
+      passwordInput.setAttribute('type', type);
+      icon.classList.toggle('fa-eye');
+      icon.classList.toggle('fa-eye-slash');
+    }
+
+    toggleButton.addEventListener('click', togglePassword);
+    toggleButton.addEventListener('keypress', function(e) {
+      if (e.key === 'Enter' || e.key === ' ') {
+        togglePassword();
+      }
+    });
+  });
+</script>
+{% endblock %}

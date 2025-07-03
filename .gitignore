@@ -1,0 +1,10 @@
+settlex-env/
+__pycache__/
+*.pyc
+*.sqlite3
+*.log
+*.bak
+*.png
+nohup.out
+.DS_Store
+

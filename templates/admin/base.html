@@ -1,0 +1,9 @@
+{% extends "admin/base.html" %}
+
+{% block extrahead %}
+    {{ block.super }}
+    <script>
+        // ✅ Prevents 'is_nav_sidebar_enabled' errors
+        window.is_nav_sidebar_enabled = false;
+    </script>
+{% endblock %}

@@ -1,0 +1,98 @@
+{% extends 'settlements_app/base.html' %}
+{% load static %}
+
+{% block title %}My Transactions - SettleX{% endblock %}
+
+{% block inner_content %}
+{% if user.is_authenticated %}
+    <div class="card shadow-sm">
+        <div class="card-header bg-primary text-white d-flex justify-content-between align-items-center">
+            <h5 class="mb-0">My Transactions</h5>
+        </div>
+        <div class="card-body">
+            {% if messages %}
+                {% for message in messages %}
+                    <div class="alert alert-info" role="alert">
+                        {{ message }}
+                    </div>
+                {% endfor %}
+            {% endif %}
+
+            <div class="table-responsive">
+                <table class="table table-bordered table-hover align-middle">
+                    <thead class="table-light">
+                        <tr>
+                            <th scope="col">File Reference</th>
+                            <th scope="col">Client(s)</th>
+                            <th scope="col">Transaction Type</th>
+                            <th scope="col">Transaction Address</th>
+                            <th scope="col">Title Reference(s)</th>
+                            <th scope="col">Date</th>
+                            <th scope="col">Status</th>
+                            <th scope="col">Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% if transactions %}
+                            {% for transaction in transactions %}
+                                <tr>
+                                    <td>{{ transaction.file_reference }}</td>
+                                    <td>
+                                        {% if transaction.settlement_type == "purchase" %}
+                                            {{ transaction.purchaser_name }}
+                                        {% elif transaction.settlement_type == "sale" %}
+                                            {{ transaction.seller_name }}
+                                        {% else %}
+                                            {{ transaction.purchaser_name|default:"N/A" }}
+                                        {% endif %}
+                                    </td>
+                                    <td>{{ transaction.get_settlement_type_display }}</td>
+                                    <td>{{ transaction.transaction_address }}</td>
+                                    <td>{{ transaction.title_reference }}</td>
+                                    <td>{{ transaction.settlement_date|date:"d M Y" }}</td>
+                                    <td>
+                                        <span class="badge
+                                            {% if transaction.status == 'pending' %} bg-warning
+                                            {% elif transaction.status == 'accepted' %} bg-primary
+                                            {% elif transaction.status == 'ready' %} bg-info
+                                            {% elif transaction.status == 'settling' %} bg-secondary
+                                            {% elif transaction.status == 'settled' %} bg-success
+                                            {% else %} bg-dark {% endif %}">
+                                            {{ transaction.get_status_display }}
+                                        </span>
+                                    </td>
+                                    <td class="d-flex gap-1 flex-wrap">
+                                        <a href="{% url 'settlements_app:view_transaction' transaction.id %}" class="btn btn-sm btn-primary">
+                                            View
+                                        </a>
+                                        <a href="{% url 'settlements_app:upload_documents' %}?settlement_id={{ transaction.id }}" class="btn btn-sm btn-secondary">
+                                            Upload Docs
+                                        </a>
+                                        <a href="{% url 'settlements_app:payment_direction' transaction.id %}" class="btn btn-sm btn-outline-dark">
+                                            Payment Direction
+                                        </a>
+                                    </td>
+                                </tr>
+                            {% endfor %}
+                        {% else %}
+                            <tr>
+                                <td colspan="8" class="text-center">No transactions found.</td>
+                            </tr>
+                        {% endif %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+{% else %}
+    <div class="container mt-5">
+        <div class="alert alert-warning text-center">
+            You must be logged in to view your transactions.
+        </div>
+        <div class="text-center">
+            <a href="{% url 'settlements_app:login' %}" class="btn btn-primary">Login</a>
+        </div>
+    </div>
+{% endif %}
+{% endblock %}
+

@@ -1,0 +1,69 @@
+{% extends 'settlements_app/base.html' %}
+{% load static %}
+
+{% block title %}Upload Document - SettleX{% endblock %}
+
+{% block inner_content %}
+<div class="container mt-4">
+    <div class="card shadow-sm">
+        <div class="card-header bg-primary text-white">
+            <h5>Upload Document</h5>
+        </div>
+        <div class="card-body">
+            <form action="{% url 'settlements_app:upload_documents' %}{% if preselected_instruction %}?settlement_id={{ preselected_instruction.id }}{% endif %}" method="post" enctype="multipart/form-data">
+                {% csrf_token %}
+
+                {% if preselected_instruction %}
+                    <div class="mb-3">
+                        <label class="form-label">Selected Instruction:</label>
+                        <p class="form-control-plaintext">
+                            {{ preselected_instruction.file_reference }}
+                        </p>
+                        <input type="hidden" name="instruction_id" value="{{ preselected_instruction.id }}">
+                    </div>
+                {% else %}
+                    <div class="mb-3">
+                        <label for="instruction_id" class="form-label">Select Instruction (File Reference):</label>
+                        <select class="form-select" id="instruction_id" name="instruction_id" required>
+                            <option value="">-- Select Instruction --</option>
+                            {% for instruction in instructions %}
+                                <option value="{{ instruction.id }}">
+                                    {{ instruction.file_reference }}
+                                </option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                {% endif %}
+
+                <div class="mb-3">
+                    <label for="document" class="form-label">Select Document File</label>
+                    <input type="file" class="form-control" id="document" name="document" required>
+                </div>
+
+                <div class="mb-3">
+                    <label for="document_name" class="form-label">Document Name (Optional)</label>
+                    <input type="text" class="form-control" id="document_name" name="document_name" placeholder="Enter a custom name or leave blank to use file name">
+                </div>
+
+                <div class="mb-3">
+                    <label for="document_type" class="form-label">Document Type</label>
+                    <select class="form-select" id="document_type" name="document_type" required>
+                        <option value="contract">Contract</option>
+                        <option value="title_search">Title search</option>
+                        <option value="id_verification">Verification of ID</option>
+                        <option value="form_qro_d2">Form QRO D2</option>
+                        <option value="trust_document">Trust document</option>
+                        <option value="asic_extract">ASIC extract</option>
+                        <option value="gst_withholding">GST withholding</option>
+                        <option value="other">Other</option>
+                    </select>
+                </div>
+
+                <button type="submit" class="btn btn-primary">Upload Document</button>
+            </form>
+
+            <a href="{% url 'settlements_app:my_transactions' %}" class="btn btn-link mt-3">← Back to My Transactions</a>
+        </div>
+    </div>
+</div>
+{% endblock %}

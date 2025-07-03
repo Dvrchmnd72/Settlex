@@ -1,0 +1,34 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <style>
+        /* CSS styles for formatting the Word document */
+        body { font-family: Arial, sans-serif; font-size: 12pt; }
+        h1 { text-align: center; }
+        table { width: 100%; margin-bottom: 15px; }
+        th, td { border: 1px solid #000; padding: 5px; text-align: left; }
+    </style>
+</head>
+<body>
+
+<h1>Settlement Statement</h1>
+
+<h3>Key Dates & Details</h3>
+<table>
+    <tr><th>Settlement Date</th><td>{{ settlement_date }}</td></tr>
+    <tr><th>Adjustment Date</th><td>{{ adjustment_date }}</td></tr>
+    <tr><th>Contract Date</th><td>{{ contract_date }}</td></tr>
+    <tr><th>Settlement Place</th><td>{{ settlement_place }}</td></tr>
+    <tr><th>Settlement Time</th><td>{{ settlement_time }}</td></tr>
+</table>
+
+<h3>Financial Summary</h3>
+<table>
+    <tr><th>Contract Price</th><td>${{ contract_price }}</td></tr>
+    <tr><th>Deposit Paid</th><td>${{ deposit }}</td></tr>
+    <tr><th>Release of Mortgage Fee</th><td>${{ release_mortgage_fee }}</td></tr>
+    <!-- Add more financial details as needed -->
+</table>
+
+</body>
+</html>

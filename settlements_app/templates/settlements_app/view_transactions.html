@@ -1,0 +1,154 @@
+{% extends 'settlements_app/base.html' %}
+{% load static %}
+
+{% block inner_content %}
+{% if user.is_authenticated %}
+    <!-- Sidebar -->
+    <div class="sidebar">
+        <div class="logo">
+            {% if user.solicitor and user.solicitor.firm %}
+                {{ user.solicitor.firm.name|default:"SettleX" }}
+            {% else %}
+                SettleX
+            {% endif %}
+        </div>
+        <a href="{% url 'settlements_app:my_transactions' %}" class="{% if request.path == '/settlex/my-transactions/' %}active{% endif %}">
+            <i class="fas fa-folder-open"></i> My Transactions
+        </a>
+        <a href="{% url 'settlements_app:new_instruction' %}" class="{% if request.path == '/settlex/new-instruction/' %}active{% endif %}">
+            <i class="fas fa-plus"></i> New Instruction
+        </a>
+        <a href="{% url 'settlements_app:logout' %}">
+            <i class="fas fa-sign-out-alt"></i> Logout
+        </a>
+    </div>
+
+    <!-- Main Content -->
+    <div class="main-content">
+        <div class="topbar">
+            <span class="user-info">Welcome, {{ user.get_full_name|default:user.username }}!</span>
+        </div>
+        <div class="content-wrapper">
+            <div class="container-fluid mt-4">
+                <div class="card shadow-sm">
+                    <div class="card-header bg-primary text-white d-flex justify-content-between align-items-center">
+                        <h5 class="mb-0">Transaction Details</h5>
+                        <a href="{% url 'settlements_app:my_transactions' %}" class="btn btn-light btn-sm">Back to My Transactions</a>
+                    </div>
+                    <div class="card-body">
+                        {% if messages %}
+                            {% for message in messages %}
+                                <div class="alert alert-info" role="alert">
+                                    {{ message }}
+                                </div>
+                            {% endfor %}
+                        {% endif %}
+
+                        <div class="row">
+                            <div class="col-md-6">
+                                <h6 class="text-muted">File Reference:</h6>
+                                <p>{{ transaction.file_reference }}</p>
+
+                                <h6 class="text-muted">Transaction Type:</h6>
+                                <p>{{ transaction.get_settlement_type_display }}</p>
+
+                                <h6 class="text-muted">Property Type:</h6>
+                                <p>{{ transaction.get_property_type_display|default:"N/A" }}</p>
+
+                                <h6 class="text-muted">
+                                    {% if transaction.settlement_type|lower == 'purchase' or transaction.settlement_type|lower == 'sale' %}
+                                        Settlement Date:
+                                    {% else %}
+                                        Lodgement Date:
+                                    {% endif %}
+                                </h6>
+                                <p>{{ transaction.settlement_date|date:"d M Y" }}</p>
+
+                                <h6 class="text-muted">Settlement Time:</h6>
+                                <p>{{ transaction.settlement_time|time:"H:i" }}</p>
+
+                                <h6 class="text-muted">Status:</h6>
+                                <span class="badge {% if transaction.status == 'pending' %}bg-warning{% elif transaction.status == 'settled' %}bg-success{% else %}bg-secondary{% endif %}">
+                                    {{ transaction.get_status_display }}
+                                </span>
+                            </div>
+
+                            <div class="col-md-6">
+                                <h6 class="text-muted">Purchaser Details:</h6>
+                                <p>
+                                    <strong>Name:</strong> {{ transaction.purchaser_name|default:"N/A" }}<br>
+                                    <strong>Mobile:</strong> {{ transaction.purchaser_mobile|default:"N/A" }}
+                                </p>
+
+                                <h6 class="text-muted">Seller Details:</h6>
+                                <p>
+                                    <strong>Name:</strong> {{ transaction.seller_name|default:"N/A" }}<br>
+                                    <strong>Address:</strong> {{ transaction.seller_address|default:"N/A" }}
+                                </p>
+
+                                <h6 class="text-muted">Transaction Address:</h6>
+                                <p>
+                                    {{ transaction.transaction_street_address|default:"" }}<br>
+                                    {{ transaction.transaction_suburb|default:"" }},
+                                    {{ transaction.transaction_state|default:"" }}
+                                    {{ transaction.transaction_postcode|default:"" }}
+                                </p>
+
+                                <h6 class="text-muted">Title Reference(s):</h6>
+                                <p>{{ transaction.title_reference|default:"N/A" }}</p>
+                            </div>
+                        </div>
+
+                        <h5 class="mt-4">Uploaded Documents</h5>
+                        <div class="table-responsive">
+                            <table class="table table-bordered table-hover align-middle">
+                                <thead class="table-light">
+                                    <tr>
+                                        <th scope="col">Document Name</th>
+                                        <th scope="col">Document Type</th>
+                                        <th scope="col">Uploaded On</th>
+                                        <th scope="col">Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% if transaction.documents.all %}
+                                        {% for doc in transaction.documents.all %}
+                                            <tr>
+                                                <td>{{ doc.name }}</td>
+                                                <td>{{ doc.get_document_type_display }}</td>
+                                                <td>{{ doc.uploaded_at|date:"d M Y, H:i A" }}</td>
+                                                <td>
+                                                    <a href="{{ doc.file.url }}" class="btn btn-sm btn-primary" target="_blank">View</a>
+                                                    <a href="{{ doc.file.url }}" class="btn btn-sm btn-success" download>Download</a>
+                                                </td>
+                                            </tr>
+                                        {% endfor %}
+                                    {% else %}
+                                        <tr>
+                                            <td colspan="4" class="text-center">No documents uploaded.</td>
+                                        </tr>
+                                    {% endif %}
+                                </tbody>
+                            </table>
+                        </div>
+
+                        <div class="mt-4">
+                            <a href="{% url 'settlements_app:edit_instruction' transaction.id %}" class="btn btn-warning">Edit Transaction</a>
+                            <a href="{% url 'settlements_app:delete_instruction' transaction.id %}" class="btn btn-danger">Delete Transaction</a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+{% else %}
+    <div class="container mt-5">
+        <div class="alert alert-warning text-center">
+            You must be logged in to view transaction details.
+        </div>
+        <div class="text-center">
+            <a href="{% url 'settlements_app:login' %}" class="btn btn-primary">Login</a>
+        </div>
+    </div>
+{% endif %}
+{% endblock inner_content %}

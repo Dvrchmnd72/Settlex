@@ -1,0 +1,54 @@
+{% extends 'settlements_app/base.html' %}
+{% block title %}Payment Directions - SettleX{% endblock %}
+
+{% block inner_content %}
+<div class="card shadow-sm mt-3">
+    <div class="card-header bg-primary text-white">
+        <h5 class="mb-0">Payment Directions</h5>
+    </div>
+    <div class="card-body">
+        <div class="table-responsive">
+            <table class="table table-bordered table-hover align-middle">
+                <thead class="table-light">
+                    <tr>
+                        <th>File Reference</th>
+                        <th>Client(s)</th>
+                        <th>Transaction Type</th>
+                        <th>Address</th>
+                        <th>Settlement Date</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for instruction in instructions %}
+                        <tr>
+                            <td>{{ instruction.file_reference }}</td>
+                            <td>
+                                {% if instruction.settlement_type == "purchase" %}
+                                    {{ instruction.purchaser_name }}
+                                {% elif instruction.settlement_type == "sale" %}
+                                    {{ instruction.seller_name }}
+                                {% else %}
+                                    N/A
+                                {% endif %}
+                            </td>
+                            <td>{{ instruction.get_settlement_type_display }}</td>
+                            <td>{{ instruction.transaction_address }}</td>
+                            <td>{{ instruction.settlement_date|date:"d M Y" }}</td>
+                            <td>
+                                <a href="{% url 'settlements_app:payment_direction' instruction.id %}" class="btn btn-sm btn-outline-primary">
+                                    {% if instruction.payment_direction %}Edit{% else %}Add{% endif %} Payment
+                                </a>
+                            </td>
+                        </tr>
+                    {% empty %}
+                        <tr>
+                            <td colspan="6" class="text-center">No instructions found.</td>
+                        </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endblock %}

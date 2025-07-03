@@ -1,0 +1,24 @@
+<!DOCTYPE html>
+{% extends 'settlements_app/base.html' %}
+
+{% block inner_content %}
+<div class="container mt-4">
+    <h2>Delete Instruction</h2>
+
+    <div class="alert alert-danger" role="alert">
+        Are you sure you want to delete the instruction for
+        <strong>{{ instruction.purchaser_name }}</strong> at
+        <strong>
+            {{ instruction.transaction_street_number }} {{ instruction.transaction_street_name }},
+            {{ instruction.transaction_suburb }},
+            {{ instruction.transaction_state }} {{ instruction.transaction_postcode }}
+        </strong>?
+    </div>
+
+    <form method="POST">
+        {% csrf_token %}
+        <button type="submit" class="btn btn-danger">Yes, Delete</button>
+        <a href="{% url 'settlements_app:my_transactions' %}" class="btn btn-secondary">Cancel</a>
+    </form>
+</div>
+{% endblock %}

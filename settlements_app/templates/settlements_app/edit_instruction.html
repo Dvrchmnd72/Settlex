@@ -1,0 +1,16 @@
+<!DOCTYPE html>
+{% extends 'settlements_app/base.html' %}
+
+{% block inner_content %}
+<div class="container mt-4">
+    <h2>Edit Instruction</h2>
+
+    <form method="POST">
+        {% csrf_token %}
+        {{ form.as_p }}
+
+        <button type="submit" class="btn btn-primary">Save Changes</button>
+        <a href="{% url 'settlements_app:my_transactions' %}" class="btn btn-secondary">Cancel</a>
+    </form>
+</div>
+{% endblock %}

@@ -1,0 +1,40 @@
+{# templates/two_factor/backup_tokens.html #}
+{% extends "two_factor/_base.html" %}
+
+{% block title %}Backup Codes – SettleX{% endblock %}
+
+{% block content %}
+  <div class="container py-5">
+    <div class="row justify-content-center">
+      <div class="col-md-8">
+        <div class="card shadow">
+          <div class="card-body">
+            <h3 class="text-center">🔐 Backup Recovery Codes</h3>
+            <p class="text-muted text-center">
+              Save these codes in a secure place. You can use them if you lose access to your authenticator app.
+            </p>
+            <div class="alert alert-warning text-center">
+              <strong>Important:</strong> Each code can be used only once.
+            </div>
+
+            <form method="post">
+              {% csrf_token %}
+              {{ wizard.management_form }}
+
+              <ul class="list-group mb-4">
+                {% for token in backup_tokens %}
+                  <li class="list-group-item text-monospace text-center">{{ token }}</li>
+                {% endfor %}
+              </ul>
+
+              <div class="text-center">
+                <button type="submit" class="btn btn-primary">Done</button>
+              </div>
+            </form>
+
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+{% endblock %}

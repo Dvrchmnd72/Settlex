@@ -1,0 +1,33 @@
+{# /home/Settlex/Settlex/templates/two_factor/disable.html #}
+{% extends 'two_factor/_base.html' %}
+
+{% block title %}Disable Two-Factor Authentication{% endblock %}
+
+{% block content_wrapper %}
+<div class="container py-5">
+  <div class="row justify-content-center">
+    <div class="col-md-6">
+      <div class="card shadow">
+        <div class="card-body">
+          <h3 class="text-center text-danger">
+            ⚠️ Disable Two-Factor Authentication
+          </h3>
+          <p class="text-center text-muted">
+            Are you sure you want to disable 2FA? This will make your account less secure.
+          </p>
+
+          <form method="post" class="text-center">
+            {% csrf_token %}
+            <button type="submit" class="btn btn-danger">
+              Yes, Disable 2FA
+            </button>
+            <a href="{% url 'two_factor:profile' %}" class="btn btn-secondary ms-2">
+              Cancel
+            </a>
+          </form>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

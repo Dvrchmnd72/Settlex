@@ -1,0 +1,31 @@
+{% extends 'settlements_app/base.html' %}
+{% load static %}
+
+{% block title %}{{ page_title|default:"SettleX" }}{% endblock %}
+
+{% block general_content %}
+    {% if user.is_authenticated %}
+        <h1 class="mb-4">Welcome to SettleX</h1>
+        <p class="lead">You're logged in and ready to manage your property settlements efficiently.</p>
+    {% else %}
+        <div class="text-center py-4">
+
+            <h1>Welcome to SettleX</h1>
+            <p class="lead">Your one-stop platform for managing property settlements.</p>
+        </div>
+
+        {% if messages %}
+            {% for message in messages %}
+                <div class="alert {% if message.tags == 'error' %}alert-danger{% else %}alert-{{ message.tags }}{% endif %}" role="alert">
+                    {{ message }}
+                </div>
+            {% endfor %}
+        {% endif %}
+
+        <div class="mt-5 text-center">
+            <h3>Why Choose SettleX?</h3>
+            <p>Efficiently manage your settlements with our secure and user-friendly platform. Designed for solicitors and conveyancers, SettleX streamlines the settlement process, saving you time and effort.</p>
+        </div>
+    {% endif %}
+{% endblock %}
+

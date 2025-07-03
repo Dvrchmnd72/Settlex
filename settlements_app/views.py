@@ -1300,7 +1300,6 @@ def settlement_calculator(request):
                 )
 
             total_adjustments = council_adj + water_adj + sum(bodycorp_adjustments.values())
-            total_payable = total_adjustments - deposit + release_mortgage_fee
             balance_at_settlement = (
                 (contract_price or 0)
                 - deposit
@@ -1325,7 +1324,6 @@ def settlement_calculator(request):
                 'water_adj': water_adj,
                 **bodycorp_adjustments,
                 'total_adjustments': total_adjustments,
-                'total_payable': total_payable,
                 'balance_at_settlement': balance_at_settlement
             }
 
@@ -1373,7 +1371,6 @@ def settlement_statement(request):
         'bodycorp_insurance',
         'bodycorp_special',
         'total_adjustments',
-        'total_payable',
         'balance_at_settlement',
     ]:
         data[key] = float(data.get(key, 0))
@@ -1400,7 +1397,6 @@ def settlement_statement_word(request):
         'bodycorp_insurance',
         'bodycorp_special',
         'total_adjustments',
-        'total_payable',
         'balance_at_settlement',
     ]:
         data[key] = float(data.get(key, 0))

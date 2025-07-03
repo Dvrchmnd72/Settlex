@@ -18,7 +18,6 @@ from django.views.decorators.csrf import csrf_exempt
 from django.http import FileResponse
 from .forms import SettlementCalculatorForm, PaymentDirectionForm, PaymentDirectionLineItemForm
 import io
-from docx import Document as DocxDocument
 
 
 import pytz
@@ -28,6 +27,7 @@ from django.urls import reverse, reverse_lazy
 from django.http import JsonResponse, HttpResponse, HttpResponseRedirect
 from django.shortcuts import render, redirect, get_object_or_404
 from django.views.decorators.csrf import csrf_protect, csrf_exempt
+from django.views.decorators.http import require_POST
 from django.utils.decorators import method_decorator
 from django.utils.timezone import now, localtime, is_naive, get_current_timezone, make_aware
 from django.contrib import messages
@@ -820,12 +820,12 @@ def payment_direction(request, instruction_id):
     line_item_form = PaymentDirectionLineItemForm(request.POST or None)
 
     if request.method == 'POST':
-        if 'save_main' in request.POST:  # Save the main payment direction form
+        if 'save_main' in request.POST or 'save_all' not in request.POST:
+            # Save the main payment direction form
             if form.is_valid():
                 form.save()
                 messages.success(request, 'Payment direction saved successfully.')
-                return redirect('settlements_app:payment_direction', instruction_id=instruction.id)
-
+                return redirect('settlements_app:view_transaction', transaction_id=instruction.id)
         elif 'save_all' in request.POST:  # Save all lines at once
             for item in line_items:
                 # Update each line item
@@ -837,7 +837,7 @@ def payment_direction(request, instruction_id):
                 item.save()
 
             messages.success(request, 'All payment direction line items saved successfully.')
-            return redirect('settlements_app:payment_direction', instruction_id=instruction.id)
+            return redirect('settlements_app:view_transaction', transaction_id=instruction.id)
 
     return render(
         request,
@@ -862,6 +862,26 @@ def delete_line_item(request, item_id):
         item.delete()
         messages.success(request, "Direction line deleted successfully.")
     return redirect('settlements_app:payment_direction', instruction_id=instruction_id)
+
+
+@login_required
+@otp_required
+@require_POST
+def edit_line_item(request):
+    """Edit a specific line item via AJAX."""
+    item_id = request.POST.get('item_id')
+    item = get_object_or_404(PaymentDirectionLineItem, id=item_id)
+
+    solicitor = getattr(request.user, 'solicitor', None)
+    if not solicitor or not solicitor.firm or item.payment_direction.instruction.solicitor.firm != solicitor.firm:
+        return JsonResponse({'status': 'error', 'message': 'Unauthorized'}, status=403)
+
+    form = PaymentDirectionLineItemForm(request.POST, instance=item)
+    if form.is_valid():
+        form.save()
+        return JsonResponse({'status': 'success', 'message': 'Line item updated'})
+
+    return JsonResponse({'status': 'error', 'errors': form.errors}, status=400)
 
 
 
@@ -1383,4 +1403,9 @@ def settlement_statement_word(request):
         'balance_at_settlement',
     ]:
         data[key] = float(data.get(key, 0))
-
+    buffer = io.BytesIO()
+    buffer.write(b"Settlement Statement")
+    for key, value in data.items():
+        buffer.write(f"\n{key}: {value}".encode())
+    buffer.seek(0)
+    return FileResponse(buffer, as_attachment=True, filename="settlement_statement.docx")

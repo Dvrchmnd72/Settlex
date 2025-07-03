@@ -5,7 +5,7 @@ from .views import (
     my_transactions, solicitor_dashboard, edit_instruction, delete_instruction,
     payment_direction, view_transaction,long_poll_messages, check_new_messages, send_message, reply_view,
     mark_messages_read, check_typing_status, upload_chat_file, delete_message, settlement_calculator,
-    settlement_statement, settlement_statement_word, list_payment_directions, delete_line_item,
+    settlement_statement, settlement_statement_word, list_payment_directions, delete_line_item, edit_line_item,
 )
 from settlements_app.views import SettlexTwoFactorSetupView
 from two_factor.views import LoginView
@@ -30,6 +30,7 @@ urlpatterns = [
     path("payment-direction/<int:instruction_id>/", payment_direction, name="payment_direction"),
     path("payment-directions/", list_payment_directions, name="list_payment_directions"),
     path('delete-line-item/<int:item_id>/', delete_line_item, name='delete_line_item'),
+    path('edit-line-item/', edit_line_item, name='edit_line_item'),
     path("transaction/<int:transaction_id>/", view_transaction, name="view_transaction"),
     path("settlement-calculator/", settlement_calculator, name="settlement_calculator"),
     path("settlement-statement/", settlement_statement, name="settlement_statement"),

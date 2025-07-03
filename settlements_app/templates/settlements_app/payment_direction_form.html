@@ -35,7 +35,7 @@
                         {% for item in line_items %}
                         <tr>
                             <td>
-                                <input type="text" name="category" value="{{ item.get_category_display }}" class="form-control payment-field" data-item-id="{{ item.id }}" disabled>
+                                <input type="text" name="category" value="{{ item.category }}" class="form-control payment-field" data-item-id="{{ item.id }}" disabled>
                             </td>
                             <td>
                                 <input type="text" name="bank_name" value="{{ item.bank_name }}" class="form-control payment-field" data-item-id="{{ item.id }}" disabled>
@@ -154,7 +154,8 @@ $(document).ready(function () {
                 }
             },
             error: function () {
-                alert("Error saving line item.");
+                alert("Error saving line item: " + xhr.responseText);
+                console.error("Response error:", xhr.responseText);
             }
         });
     });

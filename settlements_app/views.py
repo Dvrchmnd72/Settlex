@@ -16,6 +16,7 @@ from django.template.loader import get_template
 from xhtml2pdf import pisa
 from django.views.decorators.csrf import csrf_exempt
 from django.http import FileResponse
+from docx import Document
 from .forms import SettlementCalculatorForm, PaymentDirectionForm, PaymentDirectionLineItemForm
 import io
 
@@ -1403,9 +1404,21 @@ def settlement_statement_word(request):
         'balance_at_settlement',
     ]:
         data[key] = float(data.get(key, 0))
-    buffer = io.BytesIO()
-    buffer.write(b"Settlement Statement")
+    document = Document()
+    document.add_heading('Settlement Statement', level=1)
+
+    table = document.add_table(rows=1, cols=2)
+    table.style = 'Table Grid'
+    hdr_cells = table.rows[0].cells
+    hdr_cells[0].text = 'Item'
+    hdr_cells[1].text = 'Value'
+
     for key, value in data.items():
-        buffer.write(f"\n{key}: {value}".encode())
+        row_cells = table.add_row().cells
+        row_cells[0].text = key.replace('_', ' ').title()
+        row_cells[1].text = str(value)
+
+    buffer = io.BytesIO()
+    document.save(buffer)
     buffer.seek(0)
     return FileResponse(buffer, as_attachment=True, filename="settlement_statement.docx")

@@ -5,6 +5,8 @@ from django.urls import reverse
 from django.contrib.auth.models import AnonymousUser, User
 from unittest.mock import patch
 from django.contrib.messages.storage.fallback import FallbackStorage
+from docx import Document
+import io
 
 
 from .views import (
@@ -144,4 +146,9 @@ class SettlementStatementWordTests(TestCase):
         request.user = AnonymousUser()
         response = settlement_statement_word(request)
         self.assertEqual(response.status_code, 200)
+
+        content = b"".join(response.streaming_content)
+        doc = Document(io.BytesIO(content))
+        text = "\n".join(p.text for p in doc.paragraphs)
+        self.assertIn("Settlement Statement", text)
 

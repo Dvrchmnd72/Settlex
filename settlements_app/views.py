@@ -825,8 +825,11 @@ def payment_direction(request, instruction_id):
             # Save the main payment direction form
             if form.is_valid():
                 form.save()
+                # Re-fetch the payment direction after saving to ensure updated data
+                payment.refresh_from_db()
+                line_items = payment.line_items.all()  # Get the updated line items
                 messages.success(request, 'Payment direction saved successfully.')
-                return redirect('settlements_app:view_transaction', transaction_id=instruction.id)
+                return redirect('settlements_app:payment_direction', instruction_id=instruction.id)
         elif 'save_all' in request.POST:  # Save all lines at once
             for item in line_items:
                 # Update each line item
@@ -837,8 +840,11 @@ def payment_direction(request, instruction_id):
                 item.amount = request.POST.get(f'amount_{item.id}')
                 item.save()
 
+            # Re-fetch the payment direction after saving all line items
+            payment.refresh_from_db()
+            line_items = payment.line_items.all()  # Get the updated line items
             messages.success(request, 'All payment direction line items saved successfully.')
-            return redirect('settlements_app:view_transaction', transaction_id=instruction.id)
+            return redirect('settlements_app:payment_direction', instruction_id=instruction.id)
 
     return render(
         request,
@@ -846,7 +852,7 @@ def payment_direction(request, instruction_id):
         {
             'form': form,
             'instruction': instruction,
-            'line_items': line_items,
+            'line_items': line_items,  # Pass the updated line items to the template
             'total_amount': total_amount,  # Pass total amount to the template
             'line_item_form': line_item_form
         }

@@ -821,12 +821,22 @@ def payment_direction(request, instruction_id):
     line_item_form = PaymentDirectionLineItemForm(request.POST or None)
 
     if request.method == 'POST':
-        if 'save_main' in request.POST or 'save_all' not in request.POST:
+        if 'save_main' in request.POST:
             # Save the main payment direction form
             if form.is_valid():
                 form.save()
                 messages.success(request, 'Payment direction saved successfully.')
                 return redirect('settlements_app:view_transaction', transaction_id=instruction.id)
+        elif 'save_line_item' in request.POST:
+            # Add a single line item
+            if line_item_form.is_valid():
+                new_item = line_item_form.save(commit=False)
+                new_item.payment_direction = payment
+                new_item.save()
+                messages.success(request, 'Payment direction line item added successfully.')
+                return redirect('settlements_app:payment_direction', instruction_id=instruction.id)
+            else:
+                messages.error(request, 'Please correct the errors below.')
         elif 'save_all' in request.POST:  # Save all lines at once
             for item in line_items:
                 # Update each line item

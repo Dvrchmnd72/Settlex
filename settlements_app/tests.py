@@ -16,7 +16,7 @@ from .views import (
     settlement_statement_word,
     payment_direction,
 )
-from .models import Firm, Solicitor, Instruction, PaymentDirection
+from .models import Firm, Solicitor, Instruction, PaymentDirection, PaymentDirectionLineItem
 
 class SendMessageTests(TestCase):
     def setUp(self):
@@ -115,7 +115,7 @@ class PaymentDirectionViewTests(TestCase):
         self.assertContains(response, 'Payment Directions')
 
     def test_post_creates_payment_direction_and_redirects(self):
-        data = {'registration_fee': '10.00', 'pexa_fee': '20.00'}
+        data = {'registration_fee': '10.00', 'pexa_fee': '20.00', 'save_main': '1'}
         response = self._call_view('post', data)
         self.assertEqual(response.status_code, 302)
         self.assertEqual(
@@ -125,6 +125,23 @@ class PaymentDirectionViewTests(TestCase):
         pd = PaymentDirection.objects.get(instruction=self.instruction)
         self.assertEqual(pd.registration_fee, Decimal('10.00'))
         self.assertEqual(pd.pexa_fee, Decimal('20.00'))
+
+    def test_add_line_item_redirects_back_to_form(self):
+        data = {
+            'save_line_item': '1',
+            'category': 'other',
+            'bank_name': 'Bank',
+            'account_name': 'Acct',
+            'account_details': '123',
+            'amount': '50.00'
+        }
+        response = self._call_view('post', data)
+        self.assertEqual(response.status_code, 302)
+        self.assertEqual(
+            response.url,
+            reverse('settlements_app:payment_direction', args=[self.instruction.id])
+        )
+        self.assertEqual(PaymentDirectionLineItem.objects.count(), 1)
 
 
 class SettlementStatementWordTests(TestCase):

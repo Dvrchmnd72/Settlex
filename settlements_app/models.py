@@ -253,10 +253,3 @@ class PaymentDirectionLineItem(models.Model):
     def __str__(self):
         return f"{self.get_category_display()} - {self.account_name}: ${self.amount}"
 
-class Instruction(models.Model):
-    # other fields...
-    purchase_price = models.DecimalField(max_digits=12, decimal_places=2, null=True, blank=True)
-    deposit = models.DecimalField(max_digits=12, decimal_places=2, null=True, blank=True)
-    adjustments = models.DecimalField(max_digits=12, decimal_places=2, null=True, blank=True)
-
-    # other fields and methods...

@@ -101,7 +101,6 @@ class Instruction(models.Model):
     director_1_email = models.EmailField(blank=True, null=True)
     director_1_mobile = models.CharField(max_length=20, blank=True, null=True)
     director_1_address = models.CharField(max_length=255, blank=True, null=True)
-    # directors 2-5 stay same...
 
     director_2_name = models.CharField(max_length=255, blank=True, null=True)
     director_2_email = models.EmailField(blank=True, null=True)
@@ -122,6 +121,10 @@ class Instruction(models.Model):
     director_5_email = models.EmailField(blank=True, null=True)
     director_5_mobile = models.CharField(max_length=20, blank=True, null=True)
     director_5_address = models.CharField(max_length=255, blank=True, null=True)
+
+    purchase_price = models.DecimalField(max_digits=12, decimal_places=2, null=True, blank=True)
+    deposit = models.DecimalField(max_digits=12, decimal_places=2, null=True, blank=True)
+    adjustments = models.DecimalField(max_digits=12, decimal_places=2, null=True, blank=True)
 
     def __str__(self):
         return f"{self.file_reference} - {self.get_status_display()}"
@@ -212,16 +215,32 @@ class Profile(models.Model):
 
 class PaymentDirectionLineItem(models.Model):
     CATEGORY_CHOICES = [
-        ('professional_fees', 'Professional Fees'),
-        ('lodgement_fees', 'Lodgement Fees'),
-        ('pexa_fees', 'PEXA Fees'),
+        ('body_corp', 'Body Corporate Fees'),
+        ('council_rates', 'Council Rates'),
+        ('gst_withholding', 'GST Withholding'),
+        ('linked_settlement', 'Linked Financial Settlement'),
         ('other', 'Other'),
+        ('bpay', 'Other (BPAY)'),
+        ('professional_fees', 'Professional Fees'),
+        ('qld_land_tax', 'QLD Land Tax'),
+        ('third_party_beneficiary', 'Third Party Beneficiary'),
+        ('vendor_funds', "Vendor's Funds"),
+        ('water_rates', 'Water Rates'),
+        ('agent_fees', 'Real Estate Agent Fees'),
+        ('stamp_duty', 'Stamp Duty'),
+        ('lodgement_fee', 'Lodgement Fee'),
+    ]
+
+    DIRECTION_TYPE_CHOICES = [
+        ('purchaser', 'Purchaser'),
+        ('vendor', 'Vendor'),
     ]
 
     payment_direction = models.ForeignKey(
         PaymentDirection, on_delete=models.CASCADE, related_name="line_items"
     )
     category = models.CharField(max_length=50, choices=CATEGORY_CHOICES, default='other')
+    direction_type = models.CharField(max_length=20, choices=DIRECTION_TYPE_CHOICES, default='purchaser')
     bank_name = models.CharField(max_length=100, blank=True, default='')
     account_name = models.CharField(max_length=100, default='Unnamed Account')
     account_details = models.CharField(max_length=100, blank=True, default='')
@@ -231,4 +250,10 @@ class PaymentDirectionLineItem(models.Model):
     def __str__(self):
         return f"{self.get_category_display()} - {self.account_name}: ${self.amount}"
 
+class Instruction(models.Model):
+    # other fields...
+    purchase_price = models.DecimalField(max_digits=12, decimal_places=2, null=True, blank=True)
+    deposit = models.DecimalField(max_digits=12, decimal_places=2, null=True, blank=True)
+    adjustments = models.DecimalField(max_digits=12, decimal_places=2, null=True, blank=True)
 
+    # other fields and methods...

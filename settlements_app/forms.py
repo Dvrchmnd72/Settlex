@@ -303,4 +303,6 @@ class PaymentDirectionLineItemForm(forms.ModelForm):
             'account_details',
             'owner',
             'amount',
+            'direction_type',  # 👈 Add this field
         ]
+

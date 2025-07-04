@@ -240,3 +240,7 @@ html, body {
     font-size: 0.95rem;
     color: #333333;
 }
+
+select.category-select {
+    min-width: 180px;
+}

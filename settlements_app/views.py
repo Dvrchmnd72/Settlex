@@ -791,7 +791,7 @@ def delete_instruction(request, id):
 
 @login_required
 def payment_direction(request, instruction_id):
-    """View or add/edit payment direction and its line items."""
+    """View or add/edit payment direction and its line items by type."""
     solicitor = getattr(request.user, 'solicitor', None)
     if not solicitor or not solicitor.firm:
         messages.error(
@@ -805,18 +805,38 @@ def payment_direction(request, instruction_id):
         solicitor__firm=solicitor.firm,
     )
 
-    # Get or create PaymentDirection instance
     payment = PaymentDirection.objects.filter(instruction=instruction).first()
     if not payment:
         payment = PaymentDirection.objects.create(instruction=instruction)
 
-    # Get all related line items
-    line_items = payment.line_items.all()
+    # Separate line items by direction type
+    purchaser_line_items = payment.line_items.filter(direction_type='purchaser')
+    vendor_line_items = payment.line_items.filter(direction_type='vendor')
 
-    # Calculate total amount of all line items
-    total_amount = sum(item.amount for item in line_items)
+    # Totals
+    total_purchaser_amount = sum(item.amount for item in purchaser_line_items)
+    total_vendor_amount = sum(item.amount for item in vendor_line_items)
 
-    # Instantiate forms
+    # Calculate balance due at settlement
+    balance_due_at_settlement = (instruction.purchase_price or 0) - (instruction.deposit or 0) + (instruction.adjustments or 0)
+
+    # Calculate total amount purchaser has to pay (balance due + additional charges)
+    total_amount_purchaser_has_to_pay = balance_due_at_settlement + total_purchaser_amount
+
+    # Construct table sections
+    direction_tables = [
+        {
+            'label': "Purchaser Payment Directions",
+            'items': purchaser_line_items,
+            'total': total_purchaser_amount
+        },
+        {
+            'label': "Vendor Payment Directions",
+            'items': vendor_line_items,
+            'total': total_vendor_amount
+        }
+    ]
+
     form = PaymentDirectionForm(request.POST or None, instance=payment)
     line_item_form = PaymentDirectionLineItemForm(request.POST or None)
 
@@ -828,28 +848,21 @@ def payment_direction(request, instruction_id):
                 item.save()
                 messages.success(request, 'Payment direction line item added successfully.')
                 return redirect('settlements_app:payment_direction', instruction_id=instruction.id)
-        if 'save_main' in request.POST or 'save_all' not in request.POST:
-            # Save the main payment direction form
+
+        elif 'save_main' in request.POST or 'save_all' not in request.POST:
             if form.is_valid():
                 form.save()
-                # Re-fetch the payment direction after saving to ensure updated data
-                payment.refresh_from_db()
-                line_items = payment.line_items.all()  # Get the updated line items
                 messages.success(request, 'Payment direction saved successfully.')
                 return redirect('settlements_app:payment_direction', instruction_id=instruction.id)
-        elif 'save_all' in request.POST:  # Save all lines at once
-            for item in line_items:
-                # Update each line item
-                item.category = request.POST.get(f'category_{item.id}')
-                item.bank_name = request.POST.get(f'bank_name_{item.id}')
-                item.account_name = request.POST.get(f'account_name_{item.id}')
-                item.account_details = request.POST.get(f'account_details_{item.id}')
-                item.amount = request.POST.get(f'amount_{item.id}')
-                item.save()
 
-            # Re-fetch the payment direction after saving all line items
-            payment.refresh_from_db()
-            line_items = payment.line_items.all()  # Get the updated line items
+        elif 'save_all' in request.POST:
+            for item in payment.line_items.all():
+                item.category = request.POST.get(f'category_{item.id}', item.category)
+                item.bank_name = request.POST.get(f'bank_name_{item.id}', item.bank_name)
+                item.account_name = request.POST.get(f'account_name_{item.id}', item.account_name)
+                item.account_details = request.POST.get(f'account_details_{item.id}', item.account_details)
+                item.amount = request.POST.get(f'amount_{item.id}', item.amount)
+                item.save()
             messages.success(request, 'All payment direction line items saved successfully.')
             return redirect('settlements_app:payment_direction', instruction_id=instruction.id)
 
@@ -859,23 +872,31 @@ def payment_direction(request, instruction_id):
         {
             'form': form,
             'instruction': instruction,
-            'line_items': line_items,  # Pass the updated line items to the template
-            'total_amount': total_amount,  # Pass total amount to the template
-            'line_item_form': line_item_form
+            'line_item_form': line_item_form,
+            'direction_tables': direction_tables,
+            'balance_due_at_settlement': balance_due_at_settlement,
+            'total_amount_purchaser_has_to_pay': total_amount_purchaser_has_to_pay,
         }
     )
 
 
 @login_required
-@otp_required
+@csrf_protect  # CSRF protection for the delete action
 def delete_line_item(request, item_id):
-    """Delete a specific line item."""
-    item = get_object_or_404(PaymentDirectionLineItem, id=item_id)
-    instruction_id = item.payment_direction.instruction.id
+    """Delete a payment direction line item."""
     if request.method == 'POST':
-        item.delete()
-        messages.success(request, "Direction line deleted successfully.")
-    return redirect('settlements_app:payment_direction', instruction_id=instruction_id)
+        # Fetch item or return 404 if not found
+        item = get_object_or_404(PaymentDirectionLineItem, id=item_id)
+
+        try:
+            item.delete()
+            return JsonResponse({'status': 'success'})
+        except Exception as e:
+            # Catch errors if any
+            return JsonResponse({'status': 'error', 'message': f'Error deleting item: {str(e)}'})
+
+    return JsonResponse({'status': 'error', 'message': 'Invalid request method'})
+
 
 
 @login_required

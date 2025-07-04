@@ -4,9 +4,9 @@ from django.shortcuts import render, get_object_or_404
 from django.urls import path, reverse
 from django.utils.html import format_html
 from django.http import HttpResponseRedirect
-from django.contrib.auth.models import User
-from django.views.decorators.csrf import csrf_exempt
 from django.utils.decorators import method_decorator
+from django.views.decorators.csrf import csrf_exempt
+from django.contrib.auth.models import User  # Add this import
 from .models import Solicitor, Instruction, Document, Firm, ChatMessage
 from django.core.mail import send_mail
 from django.conf import settings
@@ -42,7 +42,7 @@ class InstructionAdmin(admin.ModelAdmin):
     search_fields = (
         "file_reference", "solicitor__user__email",
         "purchaser_name", "seller_name",
-        "transaction_street_address", "transaction_suburb", "transaction_state", "transaction_postcode",
+        "transaction_street_number", "transaction_street_name", "transaction_suburb", "transaction_state", "transaction_postcode",
         "title_reference"
     )
     list_filter = ("settlement_type", "status", "property_type", "date_created")
@@ -51,7 +51,8 @@ class InstructionAdmin(admin.ModelAdmin):
 
     def full_transaction_address(self, obj):
         parts = [
-            obj.transaction_street_address or '',
+            obj.transaction_street_number or '',
+            obj.transaction_street_name or '',
             obj.transaction_suburb or '',
             obj.transaction_state or '',
             obj.transaction_postcode or ''

@@ -122,6 +122,7 @@ class Instruction(models.Model):
     director_5_mobile = models.CharField(max_length=20, blank=True, null=True)
     director_5_address = models.CharField(max_length=255, blank=True, null=True)
 
+    # New fields for financial information
     purchase_price = models.DecimalField(max_digits=12, decimal_places=2, null=True, blank=True)
     deposit = models.DecimalField(max_digits=12, decimal_places=2, null=True, blank=True)
     adjustments = models.DecimalField(max_digits=12, decimal_places=2, null=True, blank=True)
@@ -136,6 +137,8 @@ class Instruction(models.Model):
     def delete(self, *args, **kwargs):
         logger.info(f"Deleting Instruction: {self.file_reference}")
         super().delete(*args, **kwargs)
+
+
 
 DOCUMENT_TYPE_CHOICES = [
     ('contract', 'Contract'),

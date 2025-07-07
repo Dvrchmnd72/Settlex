@@ -614,6 +614,24 @@ def new_instruction(request):
                 instruction.purchaser_address = full_company_address
 
             instruction.save()
+
+            # Send summary email
+            email_subject = f"New Instruction {instruction.file_reference}"
+            email_body = (
+                f"File Reference: {instruction.file_reference}\n"
+                f"Solicitor: {solicitor.instructing_solicitor}\n"
+                f"Firm: {solicitor.firm.name if solicitor.firm else ''}\n"
+                f"Settlement Type: {instruction.settlement_type}\n"
+                f"Title Reference: {instruction.title_reference}\n"
+                f"Settlement Date: {instruction.settlement_date}"
+            )
+            send_mail(
+                subject=email_subject,
+                message=email_body,
+                from_email=settings.DEFAULT_FROM_EMAIL,
+                recipient_list=[solicitor.user.email],
+                fail_silently=False,
+            )
             logger.info(f"✅ Instruction created successfully: {instruction.file_reference}")
             messages.success(request, "Instruction created successfully!")
             return redirect('settlements_app:my_transactions')

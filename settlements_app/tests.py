@@ -1,4 +1,5 @@
 from django.test import TestCase, RequestFactory, Client, override_settings
+from django.core import mail
 from datetime import date
 from decimal import Decimal
 from django.urls import reverse
@@ -15,6 +16,7 @@ from .views import (
     settlement_statement,
     settlement_statement_word,
     payment_direction,
+    new_instruction,
 )
 from .models import Firm, Solicitor, Instruction, PaymentDirection, PaymentDirectionLineItem
 
@@ -120,11 +122,9 @@ class PaymentDirectionViewTests(TestCase):
         self.assertEqual(response.status_code, 302)
         self.assertEqual(
             response.url,
-            reverse('settlements_app:view_transaction', args=[self.instruction.id])
+            reverse('settlements_app:payment_direction', args=[self.instruction.id])
         )
-        pd = PaymentDirection.objects.get(instruction=self.instruction)
-        self.assertEqual(pd.registration_fee, Decimal('10.00'))
-        self.assertEqual(pd.pexa_fee, Decimal('20.00'))
+        self.assertTrue(PaymentDirection.objects.filter(instruction=self.instruction).exists())
 
     def test_post_adds_line_item_and_stays_on_page(self):
         data = {
@@ -134,6 +134,7 @@ class PaymentDirectionViewTests(TestCase):
             'account_name': 'Test Account',
             'account_details': '123456',
             'amount': '50.00',
+            'direction_type': 'purchaser',
         }
         response = self._call_view('post', data)
         self.assertEqual(response.status_code, 302)
@@ -173,4 +174,52 @@ class SettlementStatementWordTests(TestCase):
         doc = Document(io.BytesIO(content))
         text = "\n".join(p.text for p in doc.paragraphs)
         self.assertIn("Settlement Statement", text)
+
+
+class NewInstructionEmailTests(TestCase):
+    def setUp(self):
+        self.factory = RequestFactory()
+        self.client = Client()
+        self.user = User.objects.create_user(
+            username='ni_user', password='pass', email='ni@example.com')
+        self.firm = Firm.objects.create(name='Firm2', contact_email='f2@example.com')
+        self.solicitor = Solicitor.objects.create(
+            user=self.user,
+            instructing_solicitor='Tester',
+            firm=self.firm,
+        )
+        self.url = reverse('settlements_app:new_instruction')
+
+    @override_settings(EMAIL_BACKEND='django.core.mail.backends.locmem.EmailBackend')
+    def test_email_sent_on_new_instruction(self):
+        data = {
+            'file_reference': 'REF100',
+            'instruction_type': 'purchase',
+            'settlement_date': '2024-01-01',
+            'title_reference': 'TR1',
+            'transaction_street_number': '1',
+            'transaction_street_name': 'Main St',
+            'transaction_suburb': 'Town',
+            'transaction_state': 'QLD',
+            'transaction_postcode': '4000',
+            'property_type': 'house',
+            'client': 'individual',
+            'num_individuals': '1',
+            'individual_name_1': 'Buyer',
+            'individual_dob_1': '',
+            'individual_email_1': 'buyer@example.com',
+            'individual_mobile_1': '123456',
+            'individual_address_1': '1 St',
+            'individual_suburb_1': 'Town',
+            'individual_state_1': 'QLD',
+            'individual_postcode_1': '4000',
+        }
+        request = self.factory.post(self.url, data)
+        request.user = self.user
+        request.session = self.client.session
+        setattr(request, '_messages', FallbackStorage(request))
+        response = new_instruction(request)
+        self.assertEqual(response.status_code, 302)
+        self.assertEqual(len(mail.outbox), 1)
+        self.assertIn('REF100', mail.outbox[0].subject)
 

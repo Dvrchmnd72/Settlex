@@ -41,26 +41,74 @@
                 {% endfor %}
             {% endif %}
 
-            <!-- Display balance due at settlement -->
+            <!-- Purchase Breakdown -->
+            <div class="row mb-2">
+                <div class="col-md-6"><strong>Purchase Price:</strong></div>
+                <div class="col-md-6 text-end">${{ purchase_price|floatformat:2 }}</div>
+            </div>
+            <div class="row mb-2">
+                <div class="col-md-6"><strong>Less Deposit:</strong></div>
+                <div class="col-md-6 text-end text-danger">-${{ deposit_amount|floatformat:2 }}</div>
+            </div>
+            <div class="row mb-2">
+                <div class="col-md-6"><strong>Less Adjustments:</strong></div>
+                <div class="col-md-6 text-end text-danger">-${{ adjustments|floatformat:2 }}</div>
+            </div>
             <div class="row mb-3">
-                <div class="col-md-6">
-                    <strong>Balance Due at Settlement:</strong>
-                </div>
-                <div class="col-md-6 text-right">
-                    ${{ balance_due_at_settlement|floatformat:2 }}
-                </div>
+                <div class="col-md-6"><strong>Balance Owing to Vendor:</strong></div>
+                <div class="col-md-6 text-end">${{ balance_owing_to_vendor|floatformat:2 }}</div>
             </div>
 
-            <!-- Display total amount purchaser has to pay -->
-            <div class="row mb-3">
-                <div class="col-md-6">
-                    <strong>Total Amount Purchaser Has to Pay:</strong>
-                </div>
-                <div class="col-md-6 text-right">
-                    ${{ total_amount_purchaser_has_to_pay|floatformat:2 }}
-                </div>
+            <!-- Total to Pay -->
+            <div class="row mb-2">
+                <div class="col-md-6"><strong>Total Amount Purchaser Has to Pay:</strong></div>
+                <div class="col-md-6 text-end">${{ total_amount_purchaser_has_to_pay|floatformat:2 }}</div>
             </div>
 
+            <!-- Funds Available to Settle (manual input) -->
+            <form method="post" class="row mb-4 align-items-center">
+                {% csrf_token %}
+                <input type="hidden" name="update_funds_available" value="1">
+
+                <div class="col-md-6">
+                    <label for="funds_available_to_settle" class="form-label fw-bold">
+                        Funds Available to Settle:
+                    </label>
+                </div>
+
+                <div class="col-md-4 text-end">
+                    <input type="number"
+                           step="0.01"
+                           name="funds_available_to_settle"
+                           id="funds_available_to_settle"
+                           class="form-control text-end {% if settlement_ready %}is-valid{% else %}is-invalid{% endif %}"
+                           value="{{ funds_available_to_settle|floatformat:2 }}">
+                </div>
+
+                <div class="col-md-2 text-end">
+                    <button type="submit" class="btn btn-outline-primary btn-sm">Update</button>
+                </div>
+
+                <div class="col-12 mt-1 text-end">
+                    {% if settlement_ready %}
+                        <span class="text-success fw-bold">✔ Ready to Settle</span>
+                    {% else %}
+                        {% if funds_available_to_settle < total_amount_purchaser_has_to_pay %}
+                            <span class="text-danger fw-bold">
+                                ✖ Short by ${{ difference|floatformat:2 }}
+                            </span>
+                        {% elif funds_available_to_settle > total_amount_purchaser_has_to_pay %}
+                            <span class="text-warning fw-bold">
+                                ⚠ ${{ surplus|floatformat:2 }} surplus funding
+                            </span>
+                        {% endif %}
+                    {% endif %}
+                </div>
+            </form>
+
+
+
+            <!-- Tables for Purchaser and Vendor -->
             <div class="row">
                 {% for table in direction_tables %}
                 <div class="col-lg-6">
@@ -101,21 +149,9 @@
                                                 <i class="bi bi-three-dots-vertical"></i>
                                             </button>
                                             <ul class="dropdown-menu">
-                                                <li>
-                                                    <button class="dropdown-item edit-line" type="button" data-item-id="{{ item.id }}">
-                                                        <i class="bi bi-pencil-square"></i> Edit
-                                                    </button>
-                                                </li>
-                                                <li>
-                                                    <button class="dropdown-item save-line d-none" type="button" data-item-id="{{ item.id }}">
-                                                        <i class="bi bi-check-lg"></i> Save
-                                                    </button>
-                                                </li>
-                                                <li>
-                                                    <button class="dropdown-item text-danger delete-line" type="button" data-item-id="{{ item.id }}">
-                                                        <i class="bi bi-trash"></i> Delete
-                                                    </button>
-                                                </li>
+                                                <li><button class="dropdown-item edit-line" type="button" data-item-id="{{ item.id }}"><i class="bi bi-pencil-square"></i> Edit</button></li>
+                                                <li><button class="dropdown-item save-line d-none" type="button" data-item-id="{{ item.id }}"><i class="bi bi-check-lg"></i> Save</button></li>
+                                                <li><button class="dropdown-item text-danger delete-line" type="button" data-item-id="{{ item.id }}"><i class="bi bi-trash"></i> Delete</button></li>
                                             </ul>
                                         </div>
                                     </td>
@@ -143,40 +179,15 @@
                 <form method="post" class="row g-2 align-items-end">
                     {% csrf_token %}
                     <input type="hidden" name="save_line_item" value="1">
-
-                    <div class="col-md-2">
-                        {{ line_item_form.category.label_tag }}
-                        {{ line_item_form.category|add_class:"form-select" }}
-                    </div>
-                    <div class="col-md-2">
-                        {{ line_item_form.bank_name.label_tag }}
-                        {{ line_item_form.bank_name|add_class:"form-control" }}
-                    </div>
-                    <div class="col-md-2">
-                        {{ line_item_form.account_name.label_tag }}
-                        {{ line_item_form.account_name|add_class:"form-control" }}
-                    </div>
-                    <div class="col-md-2">
-                        <label for="{{ line_item_form.account_details.id_for_label }}">Account Number:</label>
-                        {{ line_item_form.account_details|add_class:"form-control" }}
-                    </div>
-                    <div class="col-md-2">
-                        {{ line_item_form.amount.label_tag }}
-                        {{ line_item_form.amount|add_class:"form-control" }}
-                    </div>
-                    <div class="col-md-2">
-                        {{ line_item_form.direction_type.label_tag }}
-                        {{ line_item_form.direction_type|add_class:"form-select" }}
-                    </div>
-
-                    <div class="col-md-12">
-                        <button type="submit" class="btn btn-success btn-sm">Add</button>
-                    </div>
-
+                    <div class="col-md-2">{{ line_item_form.category.label_tag }}{{ line_item_form.category|add_class:"form-select" }}</div>
+                    <div class="col-md-2">{{ line_item_form.bank_name.label_tag }}{{ line_item_form.bank_name|add_class:"form-control" }}</div>
+                    <div class="col-md-2">{{ line_item_form.account_name.label_tag }}{{ line_item_form.account_name|add_class:"form-control" }}</div>
+                    <div class="col-md-2"><label for="{{ line_item_form.account_details.id_for_label }}">Account Number:</label>{{ line_item_form.account_details|add_class:"form-control" }}</div>
+                    <div class="col-md-2">{{ line_item_form.amount.label_tag }}{{ line_item_form.amount|add_class:"form-control" }}</div>
+                    <div class="col-md-2">{{ line_item_form.direction_type.label_tag }}{{ line_item_form.direction_type|add_class:"form-select" }}</div>
+                    <div class="col-md-12"><button type="submit" class="btn btn-success btn-sm">Add</button></div>
                     {% if line_item_form.errors %}
-                    <div class="col-12 text-danger mt-2">
-                        {{ line_item_form.errors }}
-                    </div>
+                    <div class="col-12 text-danger mt-2">{{ line_item_form.errors }}</div>
                     {% endif %}
                 </form>
             </div>

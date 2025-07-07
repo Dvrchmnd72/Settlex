@@ -95,6 +95,18 @@
                     </div>
                 </div>
 
+                <div class="row mb-3 d-none" id="financialFields">
+                     <div class="col-md-6">
+                         <label class="form-label">Purchase Price</label>
+                         <input type="number" step="0.01" class="form-control" name="purchase_price" id="id_purchase_price">
+                    </div>
+                <div class="col-md-6">
+                     <label class="form-label">Deposit</label>
+                     <input type="text" class="form-control" name="deposit" placeholder="e.g. 10%, $5,000,">
+                </div>
+            </div>
+
+
                 <!-- Client Type -->
                 <div class="row mb-3">
                     <div class="col-md-6">
@@ -223,19 +235,27 @@ document.addEventListener('DOMContentLoaded', function () {
     const instructionType = document.getElementById('instruction_type');
     const client = document.getElementById('client');
     const numIndividuals = document.getElementById('num_individuals');
+    const financialFields = document.getElementById('financialFields');
 
-    function toggleDateFields() {
+    function toggleDateAndFinancialFields() {
         const type = instructionType.value;
+
+        // Hide all by default
         document.getElementById('settlementDateRow').classList.add('d-none');
         document.getElementById('lodgementDateRow').classList.add('d-none');
+        financialFields.classList.add('d-none');
+
+        // Show relevant fields based on type
         if (type === 'purchase' || type === 'sale') {
             document.getElementById('settlementDateRow').classList.remove('d-none');
+            financialFields.classList.remove('d-none');
         } else {
             document.getElementById('lodgementDateRow').classList.remove('d-none');
         }
     }
-    instructionType.addEventListener('change', toggleDateFields);
-    toggleDateFields();
+
+    instructionType.addEventListener('change', toggleDateAndFinancialFields);
+    toggleDateAndFinancialFields();  // Run on load
 
     client.addEventListener('change', function () {
         document.getElementById('individualFields').classList.toggle('d-none', client.value !== 'individual');

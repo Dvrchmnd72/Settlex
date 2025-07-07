@@ -19,6 +19,7 @@ from django.http import FileResponse
 from docx import Document
 from .forms import SettlementCalculatorForm, PaymentDirectionForm, PaymentDirectionLineItemForm
 import io
+from decimal import Decimal, InvalidOperation
 
 
 import pytz
@@ -487,6 +488,7 @@ def register(request):
                   {'existing_firm': firm, 'page_title': 'Register an Account'})
 
 
+
 def new_instruction(request):
     try:
         if request.method == 'POST':
@@ -495,6 +497,11 @@ def new_instruction(request):
             file_reference = request.POST.get('file_reference', '').strip()
             if not file_reference:
                 messages.error(request, "File Reference is required.")
+                return redirect('settlements_app:new_instruction')
+
+            # Check for duplicate file_reference
+            if Instruction.objects.filter(file_reference=file_reference).exists():
+                messages.error(request, "This file reference already exists. Please use a different one.")
                 return redirect('settlements_app:new_instruction')
 
             transaction_type = request.POST.get('instruction_type', '').strip()
@@ -536,6 +543,21 @@ def new_instruction(request):
                 messages.error(request, "You must be a registered solicitor to submit instructions.")
                 return redirect('home')
 
+            # Optional financial fields
+            purchase_price_raw = request.POST.get('purchase_price', '').strip()
+            deposit_raw = request.POST.get('deposit', '').strip()
+
+            purchase_price = None
+            if purchase_price_raw:
+                try:
+                    purchase_price = Decimal(purchase_price_raw.replace(',', ''))
+                except InvalidOperation:
+                    messages.error(request, "Invalid purchase price format.")
+                    return redirect('settlements_app:new_instruction')
+
+            # Allow deposit to be any string (amount or percentage)
+            deposit = deposit_raw if deposit_raw else None
+
             instruction = Instruction.objects.create(
                 solicitor=solicitor,
                 file_reference=file_reference,
@@ -547,9 +569,12 @@ def new_instruction(request):
                 transaction_suburb=suburb,
                 transaction_state=state,
                 transaction_postcode=postcode,
-                property_type=property_type
+                property_type=property_type,
+                purchase_price=purchase_price,
+                deposit=deposit
             )
 
+            # Client section
             client_type = request.POST.get('client')
             if client_type == 'individual':
                 individuals = []
@@ -599,6 +624,7 @@ def new_instruction(request):
         logger.error(traceback.format_exc())
         messages.error(request, f"An unexpected error occurred: {str(e)}")
         return redirect('settlements_app:new_instruction')
+
 
 @otp_required
 def my_transactions(request):
@@ -754,7 +780,7 @@ def edit_instruction(request, id):
         if form.is_valid():
             form.save()
             messages.success(request, "Instruction updated successfully!")
-            return redirect('my_transactions')
+            return redirect('settlements_app:my_transactions')
     else:
         form = InstructionForm(instance=instruction)
 
@@ -789,6 +815,15 @@ def delete_instruction(request, id):
     })
 
 
+
+from decimal import Decimal, InvalidOperation
+from django.contrib import messages
+from django.contrib.auth.decorators import login_required
+from django.shortcuts import get_object_or_404, redirect, render
+from .models import Instruction, PaymentDirection
+from .forms import PaymentDirectionForm, PaymentDirectionLineItemForm
+
+
 @login_required
 def payment_direction(request, instruction_id):
     """View or add/edit payment direction and its line items by type."""
@@ -817,13 +852,38 @@ def payment_direction(request, instruction_id):
     total_purchaser_amount = sum(item.amount for item in purchaser_line_items)
     total_vendor_amount = sum(item.amount for item in vendor_line_items)
 
-    # Calculate balance due at settlement
-    balance_due_at_settlement = (instruction.purchase_price or 0) - (instruction.deposit or 0) + (instruction.adjustments or 0)
+    # Parse deposit input
+    purchase_price = instruction.purchase_price or Decimal('0')
+    deposit_raw = instruction.deposit or ''
+    adjustments = instruction.adjustments or Decimal('0')
+    deposit_amount = Decimal('0')
 
-    # Calculate total amount purchaser has to pay (balance due + additional charges)
-    total_amount_purchaser_has_to_pay = balance_due_at_settlement + total_purchaser_amount
+    try:
+        clean = deposit_raw.strip().replace(',', '').replace('$', '')
+        if clean.endswith('%'):
+            percent = Decimal(clean.rstrip('%').strip())
+            deposit_amount = (purchase_price * percent) / Decimal('100')
+        else:
+            deposit_amount = Decimal(clean)
+    except (InvalidOperation, ValueError):
+        deposit_amount = Decimal('0')  # Fallback for invalid or text-based deposits
 
-    # Construct table sections
+    # Financial calculations
+    balance_owing_to_vendor = purchase_price - deposit_amount - adjustments
+    total_amount_purchaser_has_to_pay = balance_owing_to_vendor + total_purchaser_amount
+    funds_available_to_settle = payment.funds_available_to_settle or Decimal('0')
+
+    # Check if we're ready to settle
+    settlement_ready = funds_available_to_settle == total_amount_purchaser_has_to_pay
+
+    # Determine shortfall or surplus
+    difference = Decimal('0')
+    surplus = Decimal('0')
+    if funds_available_to_settle < total_amount_purchaser_has_to_pay:
+        difference = total_amount_purchaser_has_to_pay - funds_available_to_settle
+    elif funds_available_to_settle > total_amount_purchaser_has_to_pay:
+        surplus = funds_available_to_settle - total_amount_purchaser_has_to_pay
+
     direction_tables = [
         {
             'label': "Purchaser Payment Directions",
@@ -841,13 +901,12 @@ def payment_direction(request, instruction_id):
     line_item_form = PaymentDirectionLineItemForm(request.POST or None)
 
     if request.method == 'POST':
-        if 'save_line_item' in request.POST:
-            if line_item_form.is_valid():
-                item = line_item_form.save(commit=False)
-                item.payment_direction = payment
-                item.save()
-                messages.success(request, 'Payment direction line item added successfully.')
-                return redirect('settlements_app:payment_direction', instruction_id=instruction.id)
+        if 'save_line_item' in request.POST and line_item_form.is_valid():
+            item = line_item_form.save(commit=False)
+            item.payment_direction = payment
+            item.save()
+            messages.success(request, 'Payment direction line item added successfully.')
+            return redirect('settlements_app:payment_direction', instruction_id=instruction.id)
 
         elif 'save_main' in request.POST or 'save_all' not in request.POST:
             if form.is_valid():
@@ -874,10 +933,33 @@ def payment_direction(request, instruction_id):
             'instruction': instruction,
             'line_item_form': line_item_form,
             'direction_tables': direction_tables,
-            'balance_due_at_settlement': balance_due_at_settlement,
+            'purchase_price': purchase_price,
+            'deposit': deposit_raw,
+            'deposit_amount': deposit_amount,
+            'adjustments': adjustments,
+            'balance_owing_to_vendor': balance_owing_to_vendor,
             'total_amount_purchaser_has_to_pay': total_amount_purchaser_has_to_pay,
+            'funds_available_to_settle': funds_available_to_settle,
+            'settlement_ready': settlement_ready,
+            'difference': difference,
+            'surplus': surplus,
         }
     )
+
+
+
+@login_required
+@csrf_protect
+def delete_line_item(request, item_id):
+    """Delete a payment direction line item."""
+    if request.method == 'POST':
+        item = get_object_or_404(PaymentDirectionLineItem, id=item_id)
+        try:
+            item.delete()
+            return JsonResponse({'status': 'success'})
+        except Exception as e:
+            return JsonResponse({'status': 'error', 'message': f'Error deleting item: {str(e)}'})
+    return JsonResponse({'status': 'error', 'message': 'Invalid request method'})
 
 
 @login_required

@@ -11,7 +11,8 @@ import base64
 from io import BytesIO
 from django.core.exceptions import ValidationError
 from binascii import unhexlify, Error as BinasciiError
-
+from decimal import Decimal, InvalidOperation
+import re
 
 
 logger = logging.getLogger(__name__)
@@ -43,6 +44,7 @@ class InstructionForm(forms.ModelForm):
         widgets = {
             'settlement_date': forms.DateInput(attrs={'type': 'date'}),
             'lodgement_date': forms.DateInput(attrs={'type': 'date'}),
+            'deposit': forms.TextInput(attrs={'placeholder': 'e.g. 10%, 5000, Held by agent'}),
         }
 
     def save(self, commit=True):
@@ -55,9 +57,44 @@ class InstructionForm(forms.ModelForm):
 
     def clean_file_reference(self):
         file_reference = self.cleaned_data.get('file_reference')
-        if Instruction.objects.filter(file_reference=file_reference).exists():
+        qs = Instruction.objects.filter(file_reference=file_reference)
+
+        # Exclude the current instance when editing
+        if self.instance.pk:
+            qs = qs.exclude(pk=self.instance.pk)
+
+        if qs.exists():
             raise forms.ValidationError('This file reference already exists. Please choose a different one.')
+
         return file_reference
+
+
+
+    def clean_deposit(self):
+        deposit = self.cleaned_data.get('deposit')
+        if not deposit:
+            return deposit  # Allow blank
+
+        deposit = deposit.strip()
+
+        # Allow 'Held by agent' or other free text
+        if not re.search(r'[\d]', deposit):
+            return deposit
+
+        # If it ends with %, validate percentage format
+        if deposit.endswith('%'):
+            match = re.match(r'^\d+(\.\d+)?\%$', deposit)
+            if not match:
+                raise forms.ValidationError("Invalid percentage format for deposit. Use e.g. 10%")
+        else:
+            # Validate numeric format (optionally with commas or $ sign)
+            try:
+                cleaned = deposit.replace(',', '').replace('$', '')
+                Decimal(cleaned)
+            except InvalidOperation:
+                raise forms.ValidationError("Invalid numeric format for deposit. Use e.g. 5000 or $5,000")
+
+        return deposit
 
 class DocumentUploadForm(forms.ModelForm):
     class Meta:
@@ -76,7 +113,15 @@ class DocumentUploadForm(forms.ModelForm):
 class PaymentDirectionForm(forms.ModelForm):
     class Meta:
         model = PaymentDirection
-        fields = ['registration_fee', 'pexa_fee']
+        fields = ['funds_available_to_settle']
+        widgets = {
+            'funds_available_to_settle': forms.NumberInput(attrs={
+                'class': 'form-control',
+                'step': '0.01',
+                'placeholder': 'Enter amount manually'
+            }),
+        }
+
 
 class DummyForm(forms.Form):
     def __init__(self, *args, user=None, **kwargs):

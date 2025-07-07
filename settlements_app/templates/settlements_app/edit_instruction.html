@@ -5,7 +5,15 @@
 <div class="container mt-4">
     <h2>Edit Instruction</h2>
 
-    <form method="POST">
+    <!-- Show form errors if any -->
+    {% if form.errors %}
+        <div class="alert alert-danger">
+            <strong>Please correct the errors below:</strong>
+            {{ form.errors }}
+        </div>
+    {% endif %}
+
+    <form method="POST" novalidate>
         {% csrf_token %}
         {{ form.as_p }}
 
@@ -14,3 +22,4 @@
     </form>
 </div>
 {% endblock %}
+

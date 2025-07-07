@@ -124,7 +124,7 @@ class Instruction(models.Model):
 
     # New fields for financial information
     purchase_price = models.DecimalField(max_digits=12, decimal_places=2, null=True, blank=True)
-    deposit = models.DecimalField(max_digits=12, decimal_places=2, null=True, blank=True)
+    deposit = models.CharField(max_length=100, null=True, blank=True)
     adjustments = models.DecimalField(max_digits=12, decimal_places=2, null=True, blank=True)
 
     def __str__(self):
@@ -181,12 +181,20 @@ class PaymentDirection(models.Model):
         blank=True,
         null=True,
     )
+    funds_available_to_settle = models.DecimalField(
+        max_digits=12,
+        decimal_places=2,
+        null=True,
+        blank=True,
+        help_text="Manually entered amount showing funds available to settle"
+    )
 
     def total(self):
         return (self.registration_fee or 0) + (self.pexa_fee or 0)
 
     def __str__(self):
         return f"PaymentDirection for {self.instruction.file_reference}"
+
 
 class ChatMessage(models.Model):
     sender = models.ForeignKey(User, on_delete=models.CASCADE, related_name='sent_messages')

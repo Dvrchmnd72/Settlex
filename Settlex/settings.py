@@ -11,8 +11,8 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 SECRET_KEY = os.getenv("SECRET_KEY", "django-insecure-development-key")  # Fallback key for development
 
 
-# Set DEBUG to False in production to avoid exposing error details
-DEBUG = True  # Changed from True for production; use True only during development
+# Set DEBUG based on environment variable. Default is False for production safety
+DEBUG = os.getenv("DJANGO_DEBUG", "False") == "True"
 
 ALLOWED_HOSTS = [
     "settlex.onestoplegal.com.au",

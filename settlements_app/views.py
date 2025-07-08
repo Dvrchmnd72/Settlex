@@ -14,7 +14,6 @@ from django.core.mail import send_mail
 from django.http import HttpResponse
 from django.template.loader import get_template
 from xhtml2pdf import pisa
-from django.views.decorators.csrf import csrf_exempt
 from django.http import FileResponse
 from docx import Document
 from .forms import SettlementCalculatorForm, PaymentDirectionForm, PaymentDirectionLineItemForm
@@ -349,8 +348,7 @@ def register(request):
             'conveyancer_license_number', '').strip()  # Fixed field name
 
         logger.debug("🔍 Registration attempt for email: %s", email)
-        print(f"🔍 Registration attempt for email: {email}")
-        print(f"📋 Form data: {request.POST}")
+        logger.debug("📋 Form data: %s", request.POST)
 
         # Check if the user already exists
         existing_user = User.objects.filter(email=email).first()
@@ -360,13 +358,11 @@ def register(request):
                     request, "This email is already registered and active. Please log in.")
                 logger.warning(
                     "⚠️ Email already exists and is active: %s", email)
-                print(f"⚠️ Email already exists and is active: {email}")
             else:
                 messages.info(
                     request,
                     "Your account is pending admin approval. You will receive an email once activated.")
                 logger.info("ℹ️ Account pending approval for email: %s", email)
-                print(f"ℹ️ Account pending approval for email: {email}")
             return render(request,
                           'settlements_app/register.html',
                           {'message': 'Register an Account'})
@@ -375,7 +371,6 @@ def register(request):
         if not (first_name and last_name and email and password and firm_name and address and postcode and state and profession):
             messages.error(request, "Please fill in all required fields.")
             logger.warning("⚠️ Missing required fields")
-            print("⚠️ Missing required fields")
             return render(request,
                           'settlements_app/register.html',
                           {'message': 'Register an Account'})
@@ -393,7 +388,6 @@ def register(request):
                     state=state,
                 )
                 logger.info("🏢 New firm created: %s", firm.name)
-                print(f"🏢 New firm created: {firm.name}")
 
             # Create the user and set to inactive (pending admin approval)
             user = User.objects.create_user(
@@ -403,7 +397,6 @@ def register(request):
             user.is_active = False  # Pending admin approval
             user.save()
             logger.debug("👤 User created: %s", user.username)
-            print(f"👤 User created: {user.username}")
 
             # Create Solicitor profile with the correct license number
             solicitor_data = {
@@ -427,8 +420,6 @@ def register(request):
                 "👩‍💼 Solicitor created: %s (Profession: %s)",
                 solicitor,
                 profession)
-            print(
-                f"👩‍💼 Solicitor created: {solicitor} (Profession: {profession})")
 
             # Prepare admin email with solicitor/conveyancer license details
             admin_email_body = (
@@ -454,7 +445,6 @@ def register(request):
                 fail_silently=False,
             )
             logger.info("✅ Email sent to admin successfully")
-            print("✅ Email sent to admin successfully")
 
             # Send confirmation email to user
             send_mail(
@@ -468,18 +458,15 @@ def register(request):
                 fail_silently=False,
             )
             logger.info("✅ Confirmation email sent to user successfully")
-            print("✅ Confirmation email sent to user successfully")
 
             messages.success(
                 request, "Registration submitted! Please log in to continue.")
             logger.info("✅ Registration successful for: %s", user.username)
-            print(f"✅ Registration successful for: {user.username}")
             return redirect('settlements_app:login')  # Redirect to login page
 
         except Exception as e:
             messages.error(request, f"Error during registration: {str(e)}")
             logger.error("🚨 Registration error: %s", str(e))
-            print(f"🚨 Registration error: {str(e)}")
             return render(request,
                           'settlements_app/register.html',
                           {'message': 'Register an Account'})
@@ -1008,7 +995,7 @@ def edit_line_item(request):
         form.save()
         return JsonResponse({'status': 'success', 'message': 'Line item updated'})
     else:
-        print("Edit Line Item Form Errors:", form.errors)  # Debugging output
+        logger.error("Edit Line Item Form Errors: %s", form.errors)
         return JsonResponse({'status': 'error', 'errors': form.errors}, status=400)
 
 

@@ -967,20 +967,6 @@ def payment_direction(request, instruction_id):
 
 
 @login_required
-@csrf_protect
-def delete_line_item(request, item_id):
-    """Delete a payment direction line item."""
-    if request.method == 'POST':
-        item = get_object_or_404(PaymentDirectionLineItem, id=item_id)
-        try:
-            item.delete()
-            return JsonResponse({'status': 'success'})
-        except Exception as e:
-            return JsonResponse({'status': 'error', 'message': f'Error deleting item: {str(e)}'})
-    return JsonResponse({'status': 'error', 'message': 'Invalid request method'})
-
-
-@login_required
 @csrf_protect  # CSRF protection for the delete action
 def delete_line_item(request, item_id):
     """Delete a payment direction line item."""

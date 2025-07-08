@@ -25,15 +25,10 @@ python manage.py test
 ```
 
 ## Environment Variables
-Create a `.env` file in the project root and define any required environment
-variables. At a minimum the application expects a `SECRET_KEY` value:
+Create a `.env` file in the project root with the following variables:
+
 ```bash
 SECRET_KEY=your-secret-key
-```
-
-### Email settings
-The application can send email using SMTP. Configure the following variables as needed:
-```bash
 EMAIL_BACKEND=django.core.mail.backends.smtp.EmailBackend
 EMAIL_HOST=your.smtp.host
 EMAIL_PORT=587
@@ -41,4 +36,5 @@ EMAIL_USE_TLS=True
 EMAIL_HOST_USER=your@example.com
 EMAIL_HOST_PASSWORD=your-password
 ```
+
 `DEFAULT_FROM_EMAIL` defaults to `EMAIL_HOST_USER`.

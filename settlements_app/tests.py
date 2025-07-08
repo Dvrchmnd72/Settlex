@@ -223,3 +223,38 @@ class NewInstructionEmailTests(TestCase):
         self.assertEqual(len(mail.outbox), 1)
         self.assertIn('REF100', mail.outbox[0].subject)
 
+    @override_settings(EMAIL_BACKEND='django.core.mail.backends.locmem.EmailBackend')
+    def test_email_failure_still_saves_instruction(self):
+        data = {
+            'file_reference': 'REF101',
+            'instruction_type': 'purchase',
+            'settlement_date': '2024-01-01',
+            'title_reference': 'TR1',
+            'transaction_street_number': '1',
+            'transaction_street_name': 'Main St',
+            'transaction_suburb': 'Town',
+            'transaction_state': 'QLD',
+            'transaction_postcode': '4000',
+            'property_type': 'house',
+            'client': 'individual',
+            'num_individuals': '1',
+            'individual_name_1': 'Buyer',
+            'individual_dob_1': '',
+            'individual_email_1': 'buyer@example.com',
+            'individual_mobile_1': '123456',
+            'individual_address_1': '1 St',
+            'individual_suburb_1': 'Town',
+            'individual_state_1': 'QLD',
+            'individual_postcode_1': '4000',
+        }
+        request = self.factory.post(self.url, data)
+        request.user = self.user
+        request.session = self.client.session
+        setattr(request, '_messages', FallbackStorage(request))
+        with patch('django.core.mail.get_connection') as mock_get_conn:
+            mock_conn = mock_get_conn.return_value
+            mock_conn.send_messages.side_effect = Exception('fail')
+            response = new_instruction(request)
+        self.assertEqual(response.status_code, 302)
+        self.assertTrue(Instruction.objects.filter(file_reference='REF101').exists())
+

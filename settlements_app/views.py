@@ -558,82 +558,88 @@ def new_instruction(request):
             # Allow deposit to be any string (amount or percentage)
             deposit = deposit_raw if deposit_raw else None
 
-            instruction = Instruction.objects.create(
-                solicitor=solicitor,
-                file_reference=file_reference,
-                settlement_type=transaction_type,
-                settlement_date=settlement_date,
-                title_reference=title_reference,
-                transaction_street_number=street_number,
-                transaction_street_name=street_name,
-                transaction_suburb=suburb,
-                transaction_state=state,
-                transaction_postcode=postcode,
-                property_type=property_type,
-                purchase_price=purchase_price,
-                deposit=deposit
-            )
+            with transaction.atomic():
+                instruction = Instruction.objects.create(
+                    solicitor=solicitor,
+                    file_reference=file_reference,
+                    settlement_type=transaction_type,
+                    settlement_date=settlement_date,
+                    title_reference=title_reference,
+                    transaction_street_number=street_number,
+                    transaction_street_name=street_name,
+                    transaction_suburb=suburb,
+                    transaction_state=state,
+                    transaction_postcode=postcode,
+                    property_type=property_type,
+                    purchase_price=purchase_price,
+                    deposit=deposit
+                )
 
-            # Client section
-            client_type = request.POST.get('client')
-            if client_type == 'individual':
-                individuals = []
-                num_individuals = int(request.POST.get('num_individuals', 0))
-                for i in range(1, num_individuals + 1):
-                    name = request.POST.get(f'individual_name_{i}', '').strip()
-                    dob = request.POST.get(f'individual_dob_{i}', '').strip()
-                    email = request.POST.get(f'individual_email_{i}', '').strip()
-                    mobile = request.POST.get(f'individual_mobile_{i}', '').strip()
-                    address_line = request.POST.get(f'individual_address_{i}', '').strip()
-                    suburb_line = request.POST.get(f'individual_suburb_{i}', '').strip()
-                    state_line = request.POST.get(f'individual_state_{i}', '').strip()
-                    postcode_line = request.POST.get(f'individual_postcode_{i}', '').strip()
-                    full_address = f"{address_line}, {suburb_line} {state_line} {postcode_line}"
-                    individuals.append({
-                        'name': name,
-                        'email': email,
-                        'mobile': mobile,
-                        'address': full_address
-                    })
+                # Client section
+                client_type = request.POST.get('client')
+                if client_type == 'individual':
+                    individuals = []
+                    num_individuals = int(request.POST.get('num_individuals', 0))
+                    for i in range(1, num_individuals + 1):
+                        name = request.POST.get(f'individual_name_{i}', '').strip()
+                        dob = request.POST.get(f'individual_dob_{i}', '').strip()
+                        email = request.POST.get(f'individual_email_{i}', '').strip()
+                        mobile = request.POST.get(f'individual_mobile_{i}', '').strip()
+                        address_line = request.POST.get(f'individual_address_{i}', '').strip()
+                        suburb_line = request.POST.get(f'individual_suburb_{i}', '').strip()
+                        state_line = request.POST.get(f'individual_state_{i}', '').strip()
+                        postcode_line = request.POST.get(f'individual_postcode_{i}', '').strip()
+                        full_address = f"{address_line}, {suburb_line} {state_line} {postcode_line}"
+                        individuals.append({
+                            'name': name,
+                            'email': email,
+                            'mobile': mobile,
+                            'address': full_address
+                        })
 
-                instruction.purchaser_name = "; ".join([i['name'] for i in individuals if i['name']])
-                instruction.purchaser_mobile = "; ".join([i['mobile'] for i in individuals if i['mobile']])
-                instruction.purchaser_email = "; ".join([i['email'] for i in individuals if i['email']])
-                instruction.purchaser_address = "; ".join([i['address'] for i in individuals if i['address']])
+                    instruction.purchaser_name = "; ".join([i['name'] for i in individuals if i['name']])
+                    instruction.purchaser_mobile = "; ".join([i['mobile'] for i in individuals if i['mobile']])
+                    instruction.purchaser_email = "; ".join([i['email'] for i in individuals if i['email']])
+                    instruction.purchaser_address = "; ".join([i['address'] for i in individuals if i['address']])
 
-            elif client_type == 'company':
-                instruction.purchaser_name = request.POST.get('company_name', '').strip()
-                instruction.purchaser_mobile = request.POST.get('company_abn', '').strip()
-                instruction.purchaser_email = request.POST.get('company_acn', '').strip()
+                elif client_type == 'company':
+                    instruction.purchaser_name = request.POST.get('company_name', '').strip()
+                    instruction.purchaser_mobile = request.POST.get('company_abn', '').strip()
+                    instruction.purchaser_email = request.POST.get('company_acn', '').strip()
 
-                company_street = request.POST.get('company_street', '').strip()
-                company_suburb = request.POST.get('company_suburb', '').strip()
-                company_state = request.POST.get('company_state', '').strip()
-                company_postcode = request.POST.get('company_postcode', '').strip()
-                full_company_address = f"{company_street}, {company_suburb} {company_state} {company_postcode}"
-                instruction.purchaser_address = full_company_address
+                    company_street = request.POST.get('company_street', '').strip()
+                    company_suburb = request.POST.get('company_suburb', '').strip()
+                    company_state = request.POST.get('company_state', '').strip()
+                    company_postcode = request.POST.get('company_postcode', '').strip()
+                    full_company_address = f"{company_street}, {company_suburb} {company_state} {company_postcode}"
+                    instruction.purchaser_address = full_company_address
 
-            instruction.save()
+                instruction.save()
 
-            # Send summary email
-            email_subject = f"New Instruction {instruction.file_reference}"
-            email_body = (
-                f"File Reference: {instruction.file_reference}\n"
-                f"Solicitor: {solicitor.instructing_solicitor}\n"
-                f"Firm: {solicitor.firm.name if solicitor.firm else ''}\n"
-                f"Settlement Type: {instruction.settlement_type}\n"
-                f"Title Reference: {instruction.title_reference}\n"
-                f"Settlement Date: {instruction.settlement_date}"
-            )
-            send_mail(
-                subject=email_subject,
-                message=email_body,
-                from_email=settings.DEFAULT_FROM_EMAIL,
-                recipient_list=[solicitor.user.email],
-                fail_silently=False,
-            )
+                # Send summary email
+                email_subject = f"New Instruction {instruction.file_reference}"
+                email_body = (
+                    f"File Reference: {instruction.file_reference}\n"
+                    f"Solicitor: {solicitor.instructing_solicitor}\n"
+                    f"Firm: {solicitor.firm.name if solicitor.firm else ''}\n"
+                    f"Settlement Type: {instruction.settlement_type}\n"
+                    f"Title Reference: {instruction.title_reference}\n"
+                    f"Settlement Date: {instruction.settlement_date}"
+                )
+                try:
+                    send_mail(
+                        subject=email_subject,
+                        message=email_body,
+                        from_email=settings.DEFAULT_FROM_EMAIL,
+                        recipient_list=[solicitor.user.email],
+                        fail_silently=False,
+                    )
+                    messages.success(request, "Instruction created successfully!")
+                except Exception as email_error:
+                    logger.error("Email send failed: %s", email_error)
+                    messages.success(request, "Instruction created successfully, but failed to send email notification.")
+
             logger.info(f"✅ Instruction created successfully: {instruction.file_reference}")
-            messages.success(request, "Instruction created successfully!")
             return redirect('settlements_app:my_transactions')
 
         return render(request, 'settlements_app/new_instruction.html', {'page_title': 'Create New Instruction'})

@@ -1,3 +1,10 @@
+from .forms import RatesAdjustmentForm
+from .models import Instruction, RatesAdjustment
+from datetime import timedelta
+from django.shortcuts import render, get_object_or_404, redirect
+from .forms import PaymentDirectionForm, PaymentDirectionLineItemForm
+from .models import Instruction, PaymentDirection
+from django.shortcuts import get_object_or_404, redirect, render
 import os
 import json
 import time
@@ -87,6 +94,7 @@ class SettlexTwoFactorLoginView(TwoFactorLoginView):
         logger.debug("🚀 SettlexTwoFactorLoginView: dispatch triggered.")
         return super().dispatch(request, *args, **kwargs)
 
+
 @method_decorator(login_required, name='dispatch')
 class SettlexTwoFactorSetupView(SetupView):
     form_list = (
@@ -104,9 +112,11 @@ class SettlexTwoFactorSetupView(SetupView):
             return redirect('admin:index')
 
         # ✅ Skip setup if user already has confirmed TOTP device
-        existing = TOTPDevice.objects.filter(user=request.user, confirmed=True).first()
+        existing = TOTPDevice.objects.filter(
+            user=request.user, confirmed=True).first()
         if existing:
-            logger.debug("🔁 User already has confirmed device, redirecting to dashboard.")
+            logger.debug(
+                "🔁 User already has confirmed device, redirecting to dashboard.")
             return redirect('settlements_app:my_transactions')
 
         return super().dispatch(request, *args, **kwargs)
@@ -134,19 +144,21 @@ class SettlexTwoFactorSetupView(SetupView):
                     self.request.user)
         return None
 
-
     def get_form(self, step=None, data=None, files=None):
         step = step or self.steps.current or self.steps.first
         form_class = self.form_list[step]
-        logger.debug("📋 get_form called — step=%s, form_class=%s", step, form_class.__name__)
+        logger.debug("📋 get_form called — step=%s, form_class=%s",
+                     step, form_class.__name__)
 
         kwargs = self.get_form_kwargs(step)
 
         # ✅ FIX 3 — Prevent recreating TOTPDevice after user has confirmed setup
         if step in ('generator', 'validation'):
-            confirmed_device = TOTPDevice.objects.filter(user=self.request.user, confirmed=True).first()
+            confirmed_device = TOTPDevice.objects.filter(
+                user=self.request.user, confirmed=True).first()
             if confirmed_device:
-                logger.debug("✅ Confirmed TOTPDevice already exists for user %s — skipping new device setup", self.request.user)
+                logger.debug(
+                    "✅ Confirmed TOTPDevice already exists for user %s — skipping new device setup", self.request.user)
                 if 'device' in inspect.signature(form_class).parameters:
                     kwargs['device'] = confirmed_device
                 if data is None:
@@ -158,17 +170,20 @@ class SettlexTwoFactorSetupView(SetupView):
             extra_data = self.storage.extra_data or {}
             device_id = extra_data.get('device_id')
 
-            logger.debug("📦 Looking for device_id: %s in extra_data", device_id)
+            logger.debug(
+                "📦 Looking for device_id: %s in extra_data", device_id)
 
             if device_id:
                 try:
                     device = TOTPDevice.objects.get(id=int(device_id))
                     logger.debug("📦 Reusing existing TOTPDevice: %s", device)
                 except (TOTPDevice.DoesNotExist, ValueError):
-                    logger.warning("⚠️ Invalid or missing device_id; creating new TOTPDevice")
+                    logger.warning(
+                        "⚠️ Invalid or missing device_id; creating new TOTPDevice")
 
             if not device:
-                logger.debug("🔧 No existing device found, creating new TOTP device.")
+                logger.debug(
+                    "🔧 No existing device found, creating new TOTP device.")
                 key = self.get_key(step)
                 device = TOTPDevice.objects.create(
                     user=self.request.user,
@@ -179,7 +194,8 @@ class SettlexTwoFactorSetupView(SetupView):
                 extra_data['device_id'] = device.id
                 self.storage.extra_data = extra_data
                 self.request.session[self.storage.prefix] = self.storage.data
-                logger.debug("🛠 Created new TOTPDevice (ID: %s) with key: %s", device.id, device.key)
+                logger.debug(
+                    "🛠 Created new TOTPDevice (ID: %s) with key: %s", device.id, device.key)
 
             logger.debug("📦 Device at this step: %s", device)
 
@@ -207,16 +223,19 @@ class SettlexTwoFactorSetupView(SetupView):
             try:
                 if hasattr(form, 'get_context_data'):
                     form_context = form.get_context_data()
-                    logger.debug("🧬 Context from generator form: %s", form_context)
+                    logger.debug(
+                        "🧬 Context from generator form: %s", form_context)
                 context.update(form_context)
             except Exception:
-                logger.exception("⚠️ Exception while building generator context")
+                logger.exception(
+                    "⚠️ Exception while building generator context")
 
             logger.debug(
                 "🚨 QR Code base64 length: %s",
                 len(context.get('qr_code_base64') or ''))
             logger.debug("🚨 TOTP Secret: %s", context.get('totp_secret'))
-            logger.debug("📸 Generator form device: %s", getattr(form, 'device', None))
+            logger.debug("📸 Generator form device: %s",
+                         getattr(form, 'device', None))
             logger.debug("🧾 Form is_bound: %s", form.is_bound)
 
         elif step == 'validation':
@@ -226,10 +245,12 @@ class SettlexTwoFactorSetupView(SetupView):
             try:
                 if hasattr(form, 'get_context_data'):
                     form_context = form.get_context_data()
-                    logger.debug("🧬 Context from validation form: %s", form_context)
+                    logger.debug(
+                        "🧬 Context from validation form: %s", form_context)
                 context.update(form_context)
             except Exception:
-                logger.exception("⚠️ Exception while building validation context")
+                logger.exception(
+                    "⚠️ Exception while building validation context")
 
             logger.debug("🚨 Validation step context: %s", context)
 
@@ -282,13 +303,16 @@ class SettlexTwoFactorSetupView(SetupView):
             from two_factor.utils import default_device
             from django_otp.plugins.otp_totp.models import TOTPDevice
 
-            TOTPDevice.objects.filter(user=self.request.user).exclude(id=device.id).update(name=None)
+            TOTPDevice.objects.filter(user=self.request.user).exclude(
+                id=device.id).update(name=None)
             device.name = "default"
             device.save()
 
             # ✅ Log the device details
-            logger.info("✅ 2FA setup complete for user: %s — redirecting to dashboard.", self.request.user)
-            logger.debug("🔎 Default device now: %s", default_device(self.request.user))
+            logger.info(
+                "✅ 2FA setup complete for user: %s — redirecting to dashboard.", self.request.user)
+            logger.debug("🔎 Default device now: %s",
+                         default_device(self.request.user))
 
             # ✅ Log the user in with 2FA
             otp_login(self.request, device)
@@ -477,7 +501,6 @@ def register(request):
                   {'existing_firm': firm, 'page_title': 'Register an Account'})
 
 
-
 def new_instruction(request):
     try:
         if request.method == 'POST':
@@ -490,7 +513,8 @@ def new_instruction(request):
 
             # Check for duplicate file_reference
             if Instruction.objects.filter(file_reference=file_reference).exists():
-                messages.error(request, "This file reference already exists. Please use a different one.")
+                messages.error(
+                    request, "This file reference already exists. Please use a different one.")
                 return redirect('settlements_app:new_instruction')
 
             transaction_type = request.POST.get('instruction_type', '').strip()
@@ -502,25 +526,30 @@ def new_instruction(request):
                 date_value = request.POST.get('lodgement_date', '').strip()
 
             if not date_value:
-                messages.error(request, "A settlement or lodgement date is required.")
+                messages.error(
+                    request, "A settlement or lodgement date is required.")
                 return redirect('settlements_app:new_instruction')
 
             try:
-                settlement_date = datetime.strptime(date_value, '%Y-%m-%d').date()
+                settlement_date = datetime.strptime(
+                    date_value, '%Y-%m-%d').date()
             except ValueError:
                 messages.error(request, "Invalid date format. Use YYYY-MM-DD.")
                 return redirect('settlements_app:new_instruction')
 
             # Transaction address fields
-            street_number = request.POST.get('transaction_street_number', '').strip()
-            street_name = request.POST.get('transaction_street_name', '').strip()
+            street_number = request.POST.get(
+                'transaction_street_number', '').strip()
+            street_name = request.POST.get(
+                'transaction_street_name', '').strip()
             suburb = request.POST.get('transaction_suburb', '').strip()
             state = request.POST.get('transaction_state', '').strip()
             postcode = request.POST.get('transaction_postcode', '').strip()
             property_type = request.POST.get('property_type', '').strip()
 
             if not (street_number and street_name and suburb and state and postcode):
-                messages.error(request, "Complete transaction address is required.")
+                messages.error(
+                    request, "Complete transaction address is required.")
                 return redirect('settlements_app:new_instruction')
 
             if not title_reference:
@@ -529,7 +558,8 @@ def new_instruction(request):
 
             solicitor = getattr(request.user, 'solicitor', None)
             if not solicitor:
-                messages.error(request, "You must be a registered solicitor to submit instructions.")
+                messages.error(
+                    request, "You must be a registered solicitor to submit instructions.")
                 return redirect('home')
 
             # Optional financial fields
@@ -539,7 +569,8 @@ def new_instruction(request):
             purchase_price = None
             if purchase_price_raw:
                 try:
-                    purchase_price = Decimal(purchase_price_raw.replace(',', ''))
+                    purchase_price = Decimal(
+                        purchase_price_raw.replace(',', ''))
                 except InvalidOperation:
                     messages.error(request, "Invalid purchase price format.")
                     return redirect('settlements_app:new_instruction')
@@ -568,16 +599,25 @@ def new_instruction(request):
                 client_type = request.POST.get('client')
                 if client_type == 'individual':
                     individuals = []
-                    num_individuals = int(request.POST.get('num_individuals', 0))
+                    num_individuals = int(
+                        request.POST.get('num_individuals', 0))
                     for i in range(1, num_individuals + 1):
-                        name = request.POST.get(f'individual_name_{i}', '').strip()
-                        dob = request.POST.get(f'individual_dob_{i}', '').strip()
-                        email = request.POST.get(f'individual_email_{i}', '').strip()
-                        mobile = request.POST.get(f'individual_mobile_{i}', '').strip()
-                        address_line = request.POST.get(f'individual_address_{i}', '').strip()
-                        suburb_line = request.POST.get(f'individual_suburb_{i}', '').strip()
-                        state_line = request.POST.get(f'individual_state_{i}', '').strip()
-                        postcode_line = request.POST.get(f'individual_postcode_{i}', '').strip()
+                        name = request.POST.get(
+                            f'individual_name_{i}', '').strip()
+                        dob = request.POST.get(
+                            f'individual_dob_{i}', '').strip()
+                        email = request.POST.get(
+                            f'individual_email_{i}', '').strip()
+                        mobile = request.POST.get(
+                            f'individual_mobile_{i}', '').strip()
+                        address_line = request.POST.get(
+                            f'individual_address_{i}', '').strip()
+                        suburb_line = request.POST.get(
+                            f'individual_suburb_{i}', '').strip()
+                        state_line = request.POST.get(
+                            f'individual_state_{i}', '').strip()
+                        postcode_line = request.POST.get(
+                            f'individual_postcode_{i}', '').strip()
                         full_address = f"{address_line}, {suburb_line} {state_line} {postcode_line}"
                         individuals.append({
                             'name': name,
@@ -586,20 +626,31 @@ def new_instruction(request):
                             'address': full_address
                         })
 
-                    instruction.purchaser_name = "; ".join([i['name'] for i in individuals if i['name']])
-                    instruction.purchaser_mobile = "; ".join([i['mobile'] for i in individuals if i['mobile']])
-                    instruction.purchaser_email = "; ".join([i['email'] for i in individuals if i['email']])
-                    instruction.purchaser_address = "; ".join([i['address'] for i in individuals if i['address']])
+                    instruction.purchaser_name = "; ".join(
+                        [i['name'] for i in individuals if i['name']])
+                    instruction.purchaser_mobile = "; ".join(
+                        [i['mobile'] for i in individuals if i['mobile']])
+                    instruction.purchaser_email = "; ".join(
+                        [i['email'] for i in individuals if i['email']])
+                    instruction.purchaser_address = "; ".join(
+                        [i['address'] for i in individuals if i['address']])
 
                 elif client_type == 'company':
-                    instruction.purchaser_name = request.POST.get('company_name', '').strip()
-                    instruction.purchaser_mobile = request.POST.get('company_abn', '').strip()
-                    instruction.purchaser_email = request.POST.get('company_acn', '').strip()
+                    instruction.purchaser_name = request.POST.get(
+                        'company_name', '').strip()
+                    instruction.purchaser_mobile = request.POST.get(
+                        'company_abn', '').strip()
+                    instruction.purchaser_email = request.POST.get(
+                        'company_acn', '').strip()
 
-                    company_street = request.POST.get('company_street', '').strip()
-                    company_suburb = request.POST.get('company_suburb', '').strip()
-                    company_state = request.POST.get('company_state', '').strip()
-                    company_postcode = request.POST.get('company_postcode', '').strip()
+                    company_street = request.POST.get(
+                        'company_street', '').strip()
+                    company_suburb = request.POST.get(
+                        'company_suburb', '').strip()
+                    company_state = request.POST.get(
+                        'company_state', '').strip()
+                    company_postcode = request.POST.get(
+                        'company_postcode', '').strip()
                     full_company_address = f"{company_street}, {company_suburb} {company_state} {company_postcode}"
                     instruction.purchaser_address = full_company_address
 
@@ -623,12 +674,15 @@ def new_instruction(request):
                         recipient_list=[solicitor.user.email],
                         fail_silently=False,
                     )
-                    messages.success(request, "Instruction created successfully!")
+                    messages.success(
+                        request, "Instruction created successfully!")
                 except Exception as email_error:
                     logger.error("Email send failed: %s", email_error)
-                    messages.success(request, "Instruction created successfully, but failed to send email notification.")
+                    messages.success(
+                        request, "Instruction created successfully, but failed to send email notification.")
 
-            logger.info(f"✅ Instruction created successfully: {instruction.file_reference}")
+            logger.info(
+                f"✅ Instruction created successfully: {instruction.file_reference}")
             return redirect('settlements_app:my_transactions')
 
         return render(request, 'settlements_app/new_instruction.html', {'page_title': 'Create New Instruction'})
@@ -643,13 +697,15 @@ def new_instruction(request):
 def my_transactions(request):
     try:
         solicitor = getattr(request.user, 'solicitor', None)
-        logger.debug("👤 Solicitor for user %s: %s", request.user.username, solicitor)
+        logger.debug("👤 Solicitor for user %s: %s",
+                     request.user.username, solicitor)
 
         if not solicitor:
             messages.warning(
                 request,
                 "Your account is not fully registered. Please complete your solicitor profile.")
-            logger.warning("⚠️ No solicitor profile found for user: %s", request.user.username)
+            logger.warning(
+                "⚠️ No solicitor profile found for user: %s", request.user.username)
             transactions = []
         elif not solicitor.firm:
             messages.warning(
@@ -662,19 +718,22 @@ def my_transactions(request):
             transactions = Instruction.objects.filter(
                 solicitor__firm=solicitor.firm
             ).order_by('-settlement_date')
-            logger.info("📄 Retrieved %d transactions for firm: %s", transactions.count(), solicitor.firm)
+            logger.info("📄 Retrieved %d transactions for firm: %s",
+                        transactions.count(), solicitor.firm)
 
         chat_messages = ChatMessage.objects.filter(
             recipient=request.user
         ).order_by("timestamp")
-        logger.debug("💬 Loaded %d chat messages for user: %s", chat_messages.count(), request.user.username)
+        logger.debug("💬 Loaded %d chat messages for user: %s",
+                     chat_messages.count(), request.user.username)
 
         # Set enable_chat to True for this page
         enable_chat = True
 
     except Exception as e:
         logger.error("🚨 Error loading transactions: %s", str(e))
-        messages.error(request, "An error occurred while loading your transactions.")
+        messages.error(
+            request, "An error occurred while loading your transactions.")
         transactions = []
         chat_messages = []
         enable_chat = False  # If there's an error, chat is disabled
@@ -684,6 +743,7 @@ def my_transactions(request):
         'chat_messages': chat_messages,
         'enable_chat': enable_chat,  # Pass enable_chat to the template
     })
+
 
 def upload_documents(request):
     """Allows solicitors to upload documents for any instruction within their firm."""
@@ -700,7 +760,8 @@ def upload_documents(request):
             solicitor__firm=solicitor.firm).order_by('-settlement_date')
 
         preselected_instruction = None
-        settlement_id = request.GET.get('settlement_id') or request.POST.get('instruction_id')
+        settlement_id = request.GET.get(
+            'settlement_id') or request.POST.get('instruction_id')
 
         if settlement_id:
             try:
@@ -828,15 +889,6 @@ def delete_instruction(request, id):
     })
 
 
-
-from decimal import Decimal, InvalidOperation
-from django.contrib import messages
-from django.contrib.auth.decorators import login_required
-from django.shortcuts import get_object_or_404, redirect, render
-from .models import Instruction, PaymentDirection
-from .forms import PaymentDirectionForm, PaymentDirectionLineItemForm
-
-
 @login_required
 def payment_direction(request, instruction_id):
     """View or add/edit payment direction and its line items by type."""
@@ -858,7 +910,8 @@ def payment_direction(request, instruction_id):
         payment = PaymentDirection.objects.create(instruction=instruction)
 
     # Separate line items by direction type
-    purchaser_line_items = payment.line_items.filter(direction_type='purchaser')
+    purchaser_line_items = payment.line_items.filter(
+        direction_type='purchaser')
     vendor_line_items = payment.line_items.filter(direction_type='vendor')
 
     # Totals
@@ -879,12 +932,14 @@ def payment_direction(request, instruction_id):
         else:
             deposit_amount = Decimal(clean)
     except (InvalidOperation, ValueError):
-        deposit_amount = Decimal('0')  # Fallback for invalid or text-based deposits
+        # Fallback for invalid or text-based deposits
+        deposit_amount = Decimal('0')
 
     # Financial calculations
     balance_owing_to_vendor = purchase_price - deposit_amount - adjustments
     total_amount_purchaser_has_to_pay = balance_owing_to_vendor + total_purchaser_amount
-    funds_available_to_settle = payment.funds_available_to_settle or Decimal('0')
+    funds_available_to_settle = payment.funds_available_to_settle or Decimal(
+        '0')
 
     # Check if we're ready to settle
     settlement_ready = funds_available_to_settle == total_amount_purchaser_has_to_pay
@@ -918,24 +973,32 @@ def payment_direction(request, instruction_id):
             item = line_item_form.save(commit=False)
             item.payment_direction = payment
             item.save()
-            messages.success(request, 'Payment direction line item added successfully.')
+            messages.success(
+                request, 'Payment direction line item added successfully.')
             return redirect('settlements_app:payment_direction', instruction_id=instruction.id)
 
         elif 'save_main' in request.POST or 'save_all' not in request.POST:
             if form.is_valid():
                 form.save()
-                messages.success(request, 'Payment direction saved successfully.')
+                messages.success(
+                    request, 'Payment direction saved successfully.')
                 return redirect('settlements_app:payment_direction', instruction_id=instruction.id)
 
         elif 'save_all' in request.POST:
             for item in payment.line_items.all():
-                item.category = request.POST.get(f'category_{item.id}', item.category)
-                item.bank_name = request.POST.get(f'bank_name_{item.id}', item.bank_name)
-                item.account_name = request.POST.get(f'account_name_{item.id}', item.account_name)
-                item.account_details = request.POST.get(f'account_details_{item.id}', item.account_details)
-                item.amount = request.POST.get(f'amount_{item.id}', item.amount)
+                item.category = request.POST.get(
+                    f'category_{item.id}', item.category)
+                item.bank_name = request.POST.get(
+                    f'bank_name_{item.id}', item.bank_name)
+                item.account_name = request.POST.get(
+                    f'account_name_{item.id}', item.account_name)
+                item.account_details = request.POST.get(
+                    f'account_details_{item.id}', item.account_details)
+                item.amount = request.POST.get(
+                    f'amount_{item.id}', item.amount)
                 item.save()
-            messages.success(request, 'All payment direction line items saved successfully.')
+            messages.success(
+                request, 'All payment direction line items saved successfully.')
             return redirect('settlements_app:payment_direction', instruction_id=instruction.id)
 
     return render(
@@ -960,7 +1023,6 @@ def payment_direction(request, instruction_id):
     )
 
 
-
 @login_required
 @csrf_protect  # CSRF protection for the delete action
 def delete_line_item(request, item_id):
@@ -977,7 +1039,6 @@ def delete_line_item(request, item_id):
             return JsonResponse({'status': 'error', 'message': f'Error deleting item: {str(e)}'})
 
     return JsonResponse({'status': 'error', 'message': 'Invalid request method'})
-
 
 
 @login_required
@@ -1001,14 +1062,13 @@ def edit_line_item(request):
         return JsonResponse({'status': 'error', 'errors': form.errors}, status=400)
 
 
-
-
 @login_required
 def list_payment_directions(request):
     """List all matters with links to their Payment Direction forms."""
     solicitor = getattr(request.user, 'solicitor', None)
     if not solicitor or not solicitor.firm:
-        messages.error(request, "You must be a registered solicitor with a firm to access this page.")
+        messages.error(
+            request, "You must be a registered solicitor with a firm to access this page.")
         return redirect('settlements_app:home')
 
     instructions = Instruction.objects.filter(solicitor__firm=solicitor.firm)
@@ -1055,7 +1115,6 @@ def view_transaction(request, transaction_id):
     }
 
     return render(request, 'settlements_app/view_transactions.html', context)
-
 
 
 # ✅ Set up logger
@@ -1210,7 +1269,6 @@ def send_message(request):
             {"status": "error", "message": "Invalid request method"}, status=400)
 
 
-
 def check_new_messages(request):
     """Check for new messages for the logged-in user and optionally mark them as read."""
     user = request.user
@@ -1359,22 +1417,18 @@ def calculate_adjustment(full_amount, period_start, period_end, adj_date):
         buyer_days = (period_end - adj_date).days
         buyer_days = max(0, min(buyer_days, total_days))
 
-        daily_rate = full_amount / total_days if total_days > 0 else Decimal('0.00')
-        adjustment_amount = (daily_rate * buyer_days).quantize(Decimal('0.01'), rounding=ROUND_HALF_UP)
+        daily_rate = full_amount / \
+            total_days if total_days > 0 else Decimal('0.00')
+        adjustment_amount = (
+            daily_rate * buyer_days).quantize(Decimal('0.01'), rounding=ROUND_HALF_UP)
         return daily_rate.quantize(Decimal('0.01')), buyer_days, adjustment_amount
     except Exception:
         logger.exception("Failed to calculate adjustment")
         return Decimal('0.00'), 0, Decimal('0.00')
 
-from decimal import Decimal, ROUND_HALF_UP
-from django.contrib import messages
-from django.shortcuts import render, get_object_or_404, redirect
-from datetime import timedelta
-from .models import Instruction
-from .forms import RatesAdjustmentForm
-import logging
 
 logger = logging.getLogger(__name__)
+
 
 def rates_adjustment_view(request, instruction_id):
     instruction = get_object_or_404(Instruction, id=instruction_id)
@@ -1382,6 +1436,13 @@ def rates_adjustment_view(request, instruction_id):
     daily_rate = None
     buyer_days = None
     calculated_amount = None
+
+    adjustments = instruction.rates_adjustments.all()
+    total_vendor = Decimal('0.00')
+    total_purchaser = Decimal('0.00')
+    for a in adjustments:
+        total_vendor += a.vendor_amount
+        total_purchaser += a.purchaser_amount
 
     if request.method == 'POST':
         form = RatesAdjustmentForm(request.POST)
@@ -1392,19 +1453,24 @@ def rates_adjustment_view(request, instruction_id):
             if adj.period_from and adj.period_to and adj.total_amount and instruction.settlement_date:
                 try:
                     total_days = (adj.period_to - adj.period_from).days + 1
-                    buyer_start = instruction.settlement_date + timedelta(days=1)
+                    buyer_start = instruction.settlement_date + \
+                        timedelta(days=1)
                     buyer_days = (adj.period_to - buyer_start).days + 1
 
                     # Bounds check
                     buyer_days = max(0, min(buyer_days, total_days))
 
-                    daily_rate = (adj.total_amount / Decimal(total_days)).quantize(Decimal('0.01'), rounding=ROUND_HALF_UP)
-                    calculated_amount = (daily_rate * Decimal(buyer_days)).quantize(Decimal('0.01'), rounding=ROUND_HALF_UP)
+                    daily_rate = (adj.total_amount / Decimal(total_days)
+                                  ).quantize(Decimal('0.01'), rounding=ROUND_HALF_UP)
+                    calculated_amount = (
+                        daily_rate * Decimal(buyer_days)).quantize(Decimal('0.01'), rounding=ROUND_HALF_UP)
 
                     adj.amount = calculated_amount
                 except Exception as e:
-                    logger.exception("Error calculating rates adjustment: %s", e)
-                    messages.error(request, "An error occurred while calculating the adjustment.")
+                    logger.exception(
+                        "Error calculating rates adjustment: %s", e)
+                    messages.error(
+                        request, "An error occurred while calculating the adjustment.")
                     adj.amount = Decimal('0.00')
             else:
                 adj.amount = Decimal('0.00')
@@ -1412,7 +1478,6 @@ def rates_adjustment_view(request, instruction_id):
             adj.instruction = instruction
             adj.save()
 
-            messages.success(request, "Rates adjustment saved successfully.")
             return redirect('settlements_app:rates_adjustment', instruction_id=instruction.id)
     else:
         form = RatesAdjustmentForm()
@@ -1423,8 +1488,10 @@ def rates_adjustment_view(request, instruction_id):
         'daily_rate': daily_rate,
         'buyer_days': buyer_days,
         'calculated_amount': calculated_amount,
+        'adjustments': adjustments,
+        'total_vendor': total_vendor,
+        'total_purchaser': total_purchaser,
     })
-
 
 
 def settlement_calculator(request):
@@ -1436,7 +1503,6 @@ def settlement_calculator(request):
         {'label': 'Insurance', 'name': 'insurance'},
         {'label': 'Special Levy', 'name': 'special'},
     ]
-
 
     calc_form = SettlementCalculatorForm(request.POST or None)
 
@@ -1451,8 +1517,10 @@ def settlement_calculator(request):
             settlement_time = calc_form.cleaned_data.get('settlement_time')
             contract_price = calc_form.cleaned_data.get('contract_price') or 0
             deposit = calc_form.cleaned_data.get('deposit') or 0
-            release_mortgage_fee = calc_form.cleaned_data.get('release_mortgage_fee') or 0
-            registration_fee = calc_form.cleaned_data.get('registration_fee') or 0
+            release_mortgage_fee = calc_form.cleaned_data.get(
+                'release_mortgage_fee') or 0
+            registration_fee = calc_form.cleaned_data.get(
+                'registration_fee') or 0
             pexa_fee = calc_form.cleaned_data.get('pexa_fee') or 0
 
             # Calculate adjustments based on the form data
@@ -1470,7 +1538,6 @@ def settlement_calculator(request):
                 adjustment_date
             )
 
-
             bodycorp_adjustments = {}
             for levy in body_corp_levies:
                 bodycorp_adjustments[f"bodycorp_{levy['name']}"] = calculate_adjustment(
@@ -1480,7 +1547,8 @@ def settlement_calculator(request):
                     adjustment_date
                 )
 
-            total_adjustments = council_adj + water_adj + sum(bodycorp_adjustments.values())
+            total_adjustments = council_adj + water_adj + \
+                sum(bodycorp_adjustments.values())
             balance_at_settlement = (
                 (contract_price or 0)
                 - deposit
@@ -1513,7 +1581,8 @@ def settlement_calculator(request):
                 'body_corp_levies': body_corp_levies,
             }
 
-            logger.info("Settlement calculation completed and data stored in session.")
+            logger.info(
+                "Settlement calculation completed and data stored in session.")
 
             return redirect('settlements_app:settlement_statement')
 
@@ -1527,6 +1596,7 @@ def settlement_calculator(request):
         'body_corp_levies': body_corp_levies
     })
 
+
 def settlement_statement(request):
     # Retrieve data from the session
     data = request.session.get('settlement_data')
@@ -1534,7 +1604,8 @@ def settlement_statement(request):
     # Log the session data for debugging
     if not data:
         logger.error("No settlement data found in session.")
-        return redirect('settlements_app:settlement_calculator')  # Redirect back to the calculator if no data is found
+        # Redirect back to the calculator if no data is found
+        return redirect('settlements_app:settlement_calculator')
 
     logger.info(f"Settlement Data found in session: {data}")
 
@@ -1558,6 +1629,7 @@ def settlement_statement(request):
 
     # You can now render the statement template
     return render(request, 'settlements_app/settlement_statement.html', {'data': data})
+
 
 def settlement_statement_word(request):
     data = request.session.get('settlement_data')

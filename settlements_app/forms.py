@@ -16,8 +16,8 @@ import re
 from .models import RatesAdjustment
 
 
-
 logger = logging.getLogger(__name__)
+
 
 class RegistrationForm(forms.Form):
     first_name = forms.CharField(max_length=100)
@@ -31,13 +31,15 @@ class RegistrationForm(forms.Form):
     address = forms.CharField(max_length=255)
     postcode = forms.CharField(max_length=10)
     state = forms.CharField(max_length=50)
-    profession = forms.ChoiceField(choices=[('solicitor', 'Solicitor'), ('conveyancer', 'Conveyancer')])
+    profession = forms.ChoiceField(
+        choices=[('solicitor', 'Solicitor'), ('conveyancer', 'Conveyancer')])
 
     def clean_email(self):
         email = self.cleaned_data.get('email')
         if User.objects.filter(email=email).exists():
             raise forms.ValidationError("This email is already registered.")
         return email
+
 
 class InstructionForm(forms.ModelForm):
     class Meta:
@@ -50,11 +52,13 @@ class InstructionForm(forms.ModelForm):
         }
 
     def save(self, commit=True):
-        logger.info(f"Saving InstructionForm for file reference: {self.cleaned_data.get('file_reference')}")
+        logger.info(
+            f"Saving InstructionForm for file reference: {self.cleaned_data.get('file_reference')}")
         instruction = super().save(commit=False)
         if commit:
             instruction.save()
-            logger.info(f"Instruction '{instruction.file_reference}' saved successfully.")
+            logger.info(
+                f"Instruction '{instruction.file_reference}' saved successfully.")
         return instruction
 
     def clean_file_reference(self):
@@ -66,11 +70,10 @@ class InstructionForm(forms.ModelForm):
             qs = qs.exclude(pk=self.instance.pk)
 
         if qs.exists():
-            raise forms.ValidationError('This file reference already exists. Please choose a different one.')
+            raise forms.ValidationError(
+                'This file reference already exists. Please choose a different one.')
 
         return file_reference
-
-
 
     def clean_deposit(self):
         deposit = self.cleaned_data.get('deposit')
@@ -87,16 +90,19 @@ class InstructionForm(forms.ModelForm):
         if deposit.endswith('%'):
             match = re.match(r'^\d+(\.\d+)?\%$', deposit)
             if not match:
-                raise forms.ValidationError("Invalid percentage format for deposit. Use e.g. 10%")
+                raise forms.ValidationError(
+                    "Invalid percentage format for deposit. Use e.g. 10%")
         else:
             # Validate numeric format (optionally with commas or $ sign)
             try:
                 cleaned = deposit.replace(',', '').replace('$', '')
                 Decimal(cleaned)
             except InvalidOperation:
-                raise forms.ValidationError("Invalid numeric format for deposit. Use e.g. 5000 or $5,000")
+                raise forms.ValidationError(
+                    "Invalid numeric format for deposit. Use e.g. 5000 or $5,000")
 
         return deposit
+
 
 class DocumentUploadForm(forms.ModelForm):
     class Meta:
@@ -108,7 +114,8 @@ class DocumentUploadForm(forms.ModelForm):
         document.instruction = instruction_instance
         if commit:
             document.save()
-            logger.info(f"Document '{document.name}' uploaded for instruction {document.instruction.file_reference}")
+            logger.info(
+                f"Document '{document.name}' uploaded for instruction {document.instruction.file_reference}")
         return document
 
 
@@ -131,14 +138,17 @@ class DummyForm(forms.Form):
         logger.debug("👤 DummyForm initialized with user: %s", self.user)
         super().__init__(*args, **kwargs)
 
+
 class WelcomeStepForm(DummyForm):
     pass
+
 
 class ValidationStepForm(AuthenticationTokenForm):
     def __init__(self, *args, user=None, device=None, **kwargs):
         self.user = user
         self.device = device
-        logger.debug("🔐 ValidationStepForm initialized with user: %s and device: %s", self.user, self.device)
+        logger.debug(
+            "🔐 ValidationStepForm initialized with user: %s and device: %s", self.user, self.device)
         super().__init__(self.user, self.device, *args, **kwargs)
 
     def clean_token(self):
@@ -150,8 +160,10 @@ class ValidationStepForm(AuthenticationTokenForm):
             raise ValidationError("Internal error: device missing.")
 
         if not self.device.verify_token(token):
-            logger.warning("❌ Invalid token entered for device ID: %s", self.device.id)
-            raise ValidationError("Entered token is not valid. Please check your device time and try again.")
+            logger.warning(
+                "❌ Invalid token entered for device ID: %s", self.device.id)
+            raise ValidationError(
+                "Entered token is not valid. Please check your device time and try again.")
 
         logger.info("✅ Token validated for device ID: %s", self.device.id)
         return token
@@ -162,6 +174,7 @@ class ValidationStepForm(AuthenticationTokenForm):
             self.device.save()
             logger.info("✅ Device %s confirmed and saved", self.device.id)
         return self.device
+
 
 class CustomTOTPDeviceForm(forms.Form):
     def __init__(self, *args, user=None, device=None, **kwargs):
@@ -174,7 +187,8 @@ class CustomTOTPDeviceForm(forms.Form):
         if self.device:
             try:
                 key_bytes = unhexlify(self.device.key.encode())
-                self.secret_b32 = base64.b32encode(key_bytes).decode("utf-8").replace("=", "")
+                self.secret_b32 = base64.b32encode(
+                    key_bytes).decode("utf-8").replace("=", "")
                 issuer = "Settlex"
                 label = quote(f"{issuer}:{self.device.user.email}")
                 config_url = (
@@ -185,11 +199,13 @@ class CustomTOTPDeviceForm(forms.Form):
                 qr = qrcode.make(config_url)
                 buffer = BytesIO()
                 qr.save(buffer, format="PNG")
-                self.qr_code = base64.b64encode(buffer.getvalue()).decode("utf-8")
+                self.qr_code = base64.b64encode(
+                    buffer.getvalue()).decode("utf-8")
 
                 logger.debug("📱 QR code generated for: %s", config_url)
             except BinasciiError:
-                logger.error("🚨 Device key is not a valid hex string: %s", self.device.key)
+                logger.error(
+                    "🚨 Device key is not a valid hex string: %s", self.device.key)
             except Exception:
                 logger.exception("⚠️ Failed to generate QR code")
 
@@ -204,6 +220,7 @@ class CustomTOTPDeviceForm(forms.Form):
         logger.debug("📱 CustomTOTPDeviceForm.get_context_data(): %s", context)
         return context
 
+
 class LoginForm(AuthenticationForm):
     def __init__(self, *args, **kwargs):
         super(LoginForm, self).__init__(*args, **kwargs)
@@ -216,7 +233,12 @@ class LoginForm(AuthenticationForm):
             'placeholder': 'Password'
         })
 
+
 class RatesAdjustmentForm(forms.ModelForm):
+    description = forms.ChoiceField(
+        choices=RatesAdjustment.ADJUSTMENT_DESCRIPTION_CHOICES,
+        label="Adjustment Description",
+    )
     daily_rate = forms.DecimalField(
         max_digits=10, decimal_places=2, required=False,
         label="Daily Rate", disabled=True
@@ -233,6 +255,7 @@ class RatesAdjustmentForm(forms.ModelForm):
         model = RatesAdjustment
         fields = [
             'instruction',
+            'description',
             'period_from',
             'period_to',
             'total_amount',
@@ -247,13 +270,15 @@ class RatesAdjustmentForm(forms.ModelForm):
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
+        self.fields['payment_status'].label = 'Treat As'
         instance = kwargs.get('instance')
         if instance and instance.period_from and instance.period_to and instance.total_amount:
             settlement_date = instance.instruction.settlement_date if instance.instruction else None
 
             # Calculate total days in the rate period
             total_days = (instance.period_to - instance.period_from).days + 1
-            daily = instance.total_amount / total_days if total_days else Decimal('0.00')
+            daily = instance.total_amount / \
+                total_days if total_days else Decimal('0.00')
             self.fields['daily_rate'].initial = round(daily, 2)
 
             # Calculate adjustment days (post-settlement)
@@ -261,9 +286,8 @@ class RatesAdjustmentForm(forms.ModelForm):
                 adjustment_days = (instance.period_to - settlement_date).days
                 adjustment_amount = daily * adjustment_days
                 self.fields['adjustment_days'].initial = adjustment_days
-                self.fields['calculated_amount'].initial = round(adjustment_amount, 2)
-
-
+                self.fields['calculated_amount'].initial = round(
+                    adjustment_amount, 2)
 
 
 class SettlementCalculatorForm(forms.Form):
@@ -375,4 +399,3 @@ class PaymentDirectionLineItemForm(forms.ModelForm):
             'amount',
             'direction_type',  # 👈 Add this field
         ]
-

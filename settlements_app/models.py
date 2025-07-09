@@ -1,5 +1,6 @@
 import uuid
 import logging
+from decimal import Decimal
 import pytz
 from django.contrib.auth.models import User
 from django.db import models
@@ -10,8 +11,10 @@ from datetime import timedelta
 
 logger = logging.getLogger(__name__)
 
+
 def generate_file_reference():
     return str(uuid.uuid4()).split('-')[0].upper()
+
 
 class Firm(models.Model):
     name = models.CharField(max_length=255, unique=True)
@@ -25,24 +28,31 @@ class Firm(models.Model):
     def __str__(self):
         return self.name
 
+
 PROFESSION_CHOICES = [
     ('solicitor', 'Solicitor'),
     ('conveyancer', 'Conveyancer'),
     ('other', 'Other'),
 ]
 
+
 class Solicitor(models.Model):
-    user = models.OneToOneField(User, on_delete=models.CASCADE, related_name="solicitor")
+    user = models.OneToOneField(
+        User, on_delete=models.CASCADE, related_name="solicitor")
     instructing_solicitor = models.CharField(max_length=255)
-    firm = models.ForeignKey(Firm, on_delete=models.CASCADE, related_name="solicitors", null=True, blank=True)
+    firm = models.ForeignKey(Firm, on_delete=models.CASCADE,
+                             related_name="solicitors", null=True, blank=True)
     office_phone = models.CharField(max_length=20, blank=True, null=True)
     mobile_phone = models.CharField(max_length=20, blank=True, null=True)
-    profession = models.CharField(max_length=20, choices=PROFESSION_CHOICES, default='solicitor')
+    profession = models.CharField(
+        max_length=20, choices=PROFESSION_CHOICES, default='solicitor')
     law_society_number = models.CharField(max_length=50, blank=True, null=True)
-    conveyancer_license = models.CharField(max_length=50, blank=True, null=True)
+    conveyancer_license = models.CharField(
+        max_length=50, blank=True, null=True)
 
     def __str__(self):
         return f"{self.instructing_solicitor} ({self.firm.name if self.firm else 'No Firm'})"
+
 
 PROPERTY_TYPE_CHOICES = [
     ('house', 'House'),
@@ -67,9 +77,12 @@ STATUS_CHOICES = [
     ('settled', 'Settled'),
 ]
 
+
 class Instruction(models.Model):
-    solicitor = models.ForeignKey(Solicitor, on_delete=models.CASCADE, related_name="instructions")
-    file_reference = models.CharField(max_length=50, unique=True, default=generate_file_reference)
+    solicitor = models.ForeignKey(
+        Solicitor, on_delete=models.CASCADE, related_name="instructions")
+    file_reference = models.CharField(
+        max_length=50, unique=True, default=generate_file_reference)
     purchaser_name = models.CharField(max_length=255, blank=True, null=True)
     purchaser_email = models.EmailField(blank=True, null=True)
     purchaser_address = models.CharField(max_length=255, blank=True, null=True)
@@ -77,21 +90,28 @@ class Instruction(models.Model):
     seller_name = models.CharField(max_length=255, blank=True, null=True)
     seller_address = models.CharField(max_length=255, blank=True, null=True)
     title_search = models.CharField(max_length=255, blank=True, null=True)
-    settlement_type = models.CharField(max_length=100, choices=SETTLEMENT_CHOICES, default="purchase")
+    settlement_type = models.CharField(
+        max_length=100, choices=SETTLEMENT_CHOICES, default="purchase")
     settlement_date = models.DateField(blank=True, null=True)
     lodgement_date = models.DateField(blank=True, null=True)
     settlement_time = models.TimeField(blank=True, null=True)
     title_reference = models.TextField(blank=False, null=False)
-    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='pending')
+    status = models.CharField(
+        max_length=20, choices=STATUS_CHOICES, default='pending')
     date_created = models.DateTimeField(auto_now_add=True)
 
     # NEW transaction address breakdown fields
-    transaction_street_number = models.CharField(max_length=20, blank=True, null=True)
-    transaction_street_name = models.CharField(max_length=255, blank=True, null=True)
-    transaction_suburb = models.CharField(max_length=100, blank=True, null=True)
+    transaction_street_number = models.CharField(
+        max_length=20, blank=True, null=True)
+    transaction_street_name = models.CharField(
+        max_length=255, blank=True, null=True)
+    transaction_suburb = models.CharField(
+        max_length=100, blank=True, null=True)
     transaction_state = models.CharField(max_length=50, blank=True, null=True)
-    transaction_postcode = models.CharField(max_length=10, blank=True, null=True)
-    property_type = models.CharField(max_length=20, choices=PROPERTY_TYPE_CHOICES, blank=True, null=True)
+    transaction_postcode = models.CharField(
+        max_length=10, blank=True, null=True)
+    property_type = models.CharField(
+        max_length=20, choices=PROPERTY_TYPE_CHOICES, blank=True, null=True)
 
     # Company Details
     company_name = models.CharField(max_length=255, blank=True, null=True)
@@ -103,32 +123,39 @@ class Instruction(models.Model):
     director_1_name = models.CharField(max_length=255, blank=True, null=True)
     director_1_email = models.EmailField(blank=True, null=True)
     director_1_mobile = models.CharField(max_length=20, blank=True, null=True)
-    director_1_address = models.CharField(max_length=255, blank=True, null=True)
+    director_1_address = models.CharField(
+        max_length=255, blank=True, null=True)
 
     director_2_name = models.CharField(max_length=255, blank=True, null=True)
     director_2_email = models.EmailField(blank=True, null=True)
     director_2_mobile = models.CharField(max_length=20, blank=True, null=True)
-    director_2_address = models.CharField(max_length=255, blank=True, null=True)
+    director_2_address = models.CharField(
+        max_length=255, blank=True, null=True)
 
     director_3_name = models.CharField(max_length=255, blank=True, null=True)
     director_3_email = models.EmailField(blank=True, null=True)
     director_3_mobile = models.CharField(max_length=20, blank=True, null=True)
-    director_3_address = models.CharField(max_length=255, blank=True, null=True)
+    director_3_address = models.CharField(
+        max_length=255, blank=True, null=True)
 
     director_4_name = models.CharField(max_length=255, blank=True, null=True)
     director_4_email = models.EmailField(blank=True, null=True)
     director_4_mobile = models.CharField(max_length=20, blank=True, null=True)
-    director_4_address = models.CharField(max_length=255, blank=True, null=True)
+    director_4_address = models.CharField(
+        max_length=255, blank=True, null=True)
 
     director_5_name = models.CharField(max_length=255, blank=True, null=True)
     director_5_email = models.EmailField(blank=True, null=True)
     director_5_mobile = models.CharField(max_length=20, blank=True, null=True)
-    director_5_address = models.CharField(max_length=255, blank=True, null=True)
+    director_5_address = models.CharField(
+        max_length=255, blank=True, null=True)
 
     # Financial details recorded for the settlement
-    purchase_price = models.DecimalField(max_digits=12, decimal_places=2, null=True, blank=True)
+    purchase_price = models.DecimalField(
+        max_digits=12, decimal_places=2, null=True, blank=True)
     deposit = models.CharField(max_length=100, null=True, blank=True)
-    adjustments = models.DecimalField(max_digits=12, decimal_places=2, null=True, blank=True)
+    adjustments = models.DecimalField(
+        max_digits=12, decimal_places=2, null=True, blank=True)
 
     def __str__(self):
         return f"{self.file_reference} - {self.get_status_display()}"
@@ -142,7 +169,6 @@ class Instruction(models.Model):
         super().delete(*args, **kwargs)
 
 
-
 DOCUMENT_TYPE_CHOICES = [
     ('contract', 'Contract'),
     ('title_search', 'Title Search'),
@@ -153,11 +179,14 @@ DOCUMENT_TYPE_CHOICES = [
     ('gst_withholding', 'GST Withholding'),
 ]
 
+
 class Document(models.Model):
-    instruction = models.ForeignKey(Instruction, on_delete=models.CASCADE, related_name="documents")
+    instruction = models.ForeignKey(
+        Instruction, on_delete=models.CASCADE, related_name="documents")
     name = models.CharField(max_length=255)
     file = models.FileField(upload_to='settlements/documents/')
-    document_type = models.CharField(max_length=50, choices=DOCUMENT_TYPE_CHOICES, default='contract')
+    document_type = models.CharField(
+        max_length=50, choices=DOCUMENT_TYPE_CHOICES, default='contract')
     uploaded_at = models.DateTimeField(auto_now_add=True)
 
     def __str__(self):
@@ -200,8 +229,10 @@ class PaymentDirection(models.Model):
 
 
 class ChatMessage(models.Model):
-    sender = models.ForeignKey(User, on_delete=models.CASCADE, related_name='sent_messages')
-    recipient = models.ForeignKey(User, on_delete=models.CASCADE, related_name='received_messages')
+    sender = models.ForeignKey(
+        User, on_delete=models.CASCADE, related_name='sent_messages')
+    recipient = models.ForeignKey(
+        User, on_delete=models.CASCADE, related_name='received_messages')
     message = models.TextField(blank=True, null=True)
     file = models.FileField(upload_to='chat_files/', blank=True, null=True)
     is_read = models.BooleanField(default=False)
@@ -219,8 +250,10 @@ class ChatMessage(models.Model):
     def __str__(self):
         return f"{self.sender_name()} -> {self.recipient.username}: {self.message[:50] if self.message else 'File'}"
 
+
 class Profile(models.Model):
-    user = models.OneToOneField(User, on_delete=models.CASCADE, related_name='profile')
+    user = models.OneToOneField(
+        User, on_delete=models.CASCADE, related_name='profile')
     two_factor_authenticated = models.BooleanField(default=False)
 
     def __str__(self):
@@ -253,8 +286,10 @@ class PaymentDirectionLineItem(models.Model):
     payment_direction = models.ForeignKey(
         PaymentDirection, on_delete=models.CASCADE, related_name="line_items"
     )
-    category = models.CharField(max_length=50, choices=CATEGORY_CHOICES, default='other')
-    direction_type = models.CharField(max_length=20, choices=DIRECTION_TYPE_CHOICES, default='purchaser')
+    category = models.CharField(
+        max_length=50, choices=CATEGORY_CHOICES, default='other')
+    direction_type = models.CharField(
+        max_length=20, choices=DIRECTION_TYPE_CHOICES, default='purchaser')
     bank_name = models.CharField(max_length=100, blank=True, default='')
     account_name = models.CharField(max_length=100, default='Unnamed Account')
     account_details = models.CharField(max_length=100, blank=True, default='')
@@ -264,37 +299,71 @@ class PaymentDirectionLineItem(models.Model):
     def __str__(self):
         return f"{self.get_category_display()} - {self.account_name}: ${self.amount}"
 
+
 class RatesAdjustment(models.Model):
+    ADJUSTMENT_DESCRIPTION_CHOICES = [
+        ("council_rates", "Council Rates"),
+        ("water", "Water"),
+        ("body_corp", "Body Corporate"),
+        ("other", "Other"),
+    ]
     PERIOD_STATUS_CHOICES = [
         ('paid', 'Paid'),
         ('adjusted', 'Adjusted as Paid'),
         ('owing', 'Owing'),
     ]
 
-    instruction = models.ForeignKey(Instruction, on_delete=models.CASCADE, related_name='rates_adjustments')
+    instruction = models.ForeignKey(
+        Instruction, on_delete=models.CASCADE, related_name='rates_adjustments')
+    description = models.CharField(
+        max_length=50, choices=ADJUSTMENT_DESCRIPTION_CHOICES, default='council_rates')
     period_from = models.DateField()
     period_to = models.DateField()
     total_amount = models.DecimalField(max_digits=10, decimal_places=2)
-    payment_status = models.CharField(max_length=20, choices=PERIOD_STATUS_CHOICES)
+    payment_status = models.CharField(
+        max_length=20, choices=PERIOD_STATUS_CHOICES)
     cts_apportionment = models.CharField(max_length=100, blank=True, null=True)
-    arrears_amount = models.DecimalField(max_digits=10, decimal_places=2, blank=True, null=True)
-    current_balance = models.DecimalField(max_digits=10, decimal_places=2, blank=True, null=True)
+    arrears_amount = models.DecimalField(
+        max_digits=10, decimal_places=2, blank=True, null=True)
+    current_balance = models.DecimalField(
+        max_digits=10, decimal_places=2, blank=True, null=True)
     total_owing = models.DecimalField(max_digits=10, decimal_places=2)
     payee = models.CharField(max_length=255)
-    amount = models.DecimalField(max_digits=10, decimal_places=2, blank=True, null=True)
+    amount = models.DecimalField(
+        max_digits=10, decimal_places=2, blank=True, null=True)
 
     def __str__(self):
         return f"Rates Adjustment ({self.period_from} to {self.period_to}) for {self.instruction}"
+
+    @property
+    def outgoing_amount(self):
+        """Amount payable at settlement for this adjustment."""
+        return self.total_amount if self.payment_status == 'owing' else Decimal('0.00')
+
+    @property
+    def vendor_amount(self):
+        """Vendor's adjustment share based on payment status."""
+        if self.payment_status in ('paid', 'adjusted'):
+            return self.amount or Decimal('0.00')
+        return -(self.amount or Decimal('0.00'))
+
+    @property
+    def purchaser_amount(self):
+        """Purchaser's adjustment share."""
+        return -(self.vendor_amount)
+
 
 @property
 def adjustment_days(self):
     """Number of days to adjust, from settlement/adjustment date to end of billing period"""
     return (self.period_to - self.instruction.settlement_date).days
 
+
 @property
 def period_total_days(self):
     """Total number of days in the billing cycle"""
     return (self.period_to - self.period_from).days + 1
+
 
 @property
 def adjustment_amount(self):
@@ -304,6 +373,7 @@ def adjustment_amount(self):
         return round(daily_rate * self.adjustment_days, 2)
     except (ZeroDivisionError, TypeError):
         return 0.00
+
 
 def save(self, *args, **kwargs):
     # Auto-populate the amount field with the calculated amount

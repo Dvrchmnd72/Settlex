@@ -13,6 +13,8 @@ from django.core.exceptions import ValidationError
 from binascii import unhexlify, Error as BinasciiError
 from decimal import Decimal, InvalidOperation
 import re
+from .models import RatesAdjustment
+
 
 
 logger = logging.getLogger(__name__)
@@ -214,31 +216,54 @@ class LoginForm(AuthenticationForm):
             'placeholder': 'Password'
         })
 
-class AdjustmentsForm(forms.Form):
-    period_from = forms.DateField(label='Period From', widget=forms.DateInput(attrs={'type': 'date'}))
-    period_to = forms.DateField(label='Period To', widget=forms.DateInput(attrs={'type': 'date'}))
-    total_amount = forms.DecimalField(label='Total Amount', max_digits=10, decimal_places=2)
-    payment_status = forms.ChoiceField(label='Payment Status', choices=[
-        ('paid', 'Paid'),
-        ('adjusted', 'Adjusted as Paid'),
-        ('owing', 'Owing'),
-    ])
-    payable_by = forms.ChoiceField(label='Payable By', choices=[
-        ('purchaser', 'Purchaser'),
-        ('seller', 'Seller'),
-    ])
+class RatesAdjustmentForm(forms.ModelForm):
+    daily_rate = forms.DecimalField(
+        max_digits=10, decimal_places=2, required=False,
+        label="Daily Rate", disabled=True
+    )
+    adjustment_days = forms.IntegerField(
+        required=False, label="Adjustment Days", disabled=True
+    )
+    calculated_amount = forms.DecimalField(
+        max_digits=10, decimal_places=2, required=False,
+        label="Calculated Adjustment", disabled=True
+    )
 
-    def __init__(self, *args, adjustment_type=None, **kwargs):
+    class Meta:
+        model = RatesAdjustment
+        fields = [
+            'instruction',
+            'period_from',
+            'period_to',
+            'total_amount',
+            'payment_status',
+            'payee',
+            'amount',  # optionally override calculated amount
+        ]
+        widgets = {
+            'period_from': forms.DateInput(attrs={'type': 'date'}),
+            'period_to': forms.DateInput(attrs={'type': 'date'}),
+        }
+
+    def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        self.adjustment_type = adjustment_type
+        instance = kwargs.get('instance')
+        if instance and instance.period_from and instance.period_to and instance.total_amount:
+            settlement_date = instance.instruction.settlement_date if instance.instruction else None
 
-        if self.adjustment_type == 'rates':
-            self.fields['total_amount'].label = 'Total Amount of Rates Payable'
-        elif self.adjustment_type == 'water':
-            self.fields['total_amount'].label = 'Total Amount of Water Fees'
-        elif self.adjustment_type == 'body_corporate':
-            self.fields['total_amount'].label = 'Total Amount of Body Corporate Fees'
-        # Add more elif conditions for other adjustment types as needed
+            # Calculate total days in the rate period
+            total_days = (instance.period_to - instance.period_from).days + 1
+            daily = instance.total_amount / total_days if total_days else Decimal('0.00')
+            self.fields['daily_rate'].initial = round(daily, 2)
+
+            # Calculate adjustment days (post-settlement)
+            if settlement_date and instance.period_to > settlement_date:
+                adjustment_days = (instance.period_to - settlement_date).days
+                adjustment_amount = daily * adjustment_days
+                self.fields['adjustment_days'].initial = adjustment_days
+                self.fields['calculated_amount'].initial = round(adjustment_amount, 2)
+
+
 
 
 class SettlementCalculatorForm(forms.Form):

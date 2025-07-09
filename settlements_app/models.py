@@ -1,9 +1,12 @@
 import uuid
 import logging
+import pytz
 from django.contrib.auth.models import User
 from django.db import models
 from django.utils.timezone import localtime
-import pytz
+from datetime import timedelta
+from datetime import timedelta
+
 
 logger = logging.getLogger(__name__)
 
@@ -261,3 +264,48 @@ class PaymentDirectionLineItem(models.Model):
     def __str__(self):
         return f"{self.get_category_display()} - {self.account_name}: ${self.amount}"
 
+class RatesAdjustment(models.Model):
+    PERIOD_STATUS_CHOICES = [
+        ('paid', 'Paid'),
+        ('adjusted', 'Adjusted as Paid'),
+        ('owing', 'Owing'),
+    ]
+
+    instruction = models.ForeignKey(Instruction, on_delete=models.CASCADE, related_name='rates_adjustments')
+    period_from = models.DateField()
+    period_to = models.DateField()
+    total_amount = models.DecimalField(max_digits=10, decimal_places=2)
+    payment_status = models.CharField(max_length=20, choices=PERIOD_STATUS_CHOICES)
+    cts_apportionment = models.CharField(max_length=100, blank=True, null=True)
+    arrears_amount = models.DecimalField(max_digits=10, decimal_places=2, blank=True, null=True)
+    current_balance = models.DecimalField(max_digits=10, decimal_places=2, blank=True, null=True)
+    total_owing = models.DecimalField(max_digits=10, decimal_places=2)
+    payee = models.CharField(max_length=255)
+    amount = models.DecimalField(max_digits=10, decimal_places=2, blank=True, null=True)
+
+    def __str__(self):
+        return f"Rates Adjustment ({self.period_from} to {self.period_to}) for {self.instruction}"
+
+@property
+def adjustment_days(self):
+    """Number of days to adjust, from settlement/adjustment date to end of billing period"""
+    return (self.period_to - self.instruction.settlement_date).days
+
+@property
+def period_total_days(self):
+    """Total number of days in the billing cycle"""
+    return (self.period_to - self.period_from).days + 1
+
+@property
+def adjustment_amount(self):
+    """Auto-calculated adjustment amount (e.g., $978.96 x 160/184)"""
+    try:
+        daily_rate = self.total_amount / self.period_total_days
+        return round(daily_rate * self.adjustment_days, 2)
+    except (ZeroDivisionError, TypeError):
+        return 0.00
+
+def save(self, *args, **kwargs):
+    # Auto-populate the amount field with the calculated amount
+    self.amount = self.adjustment_amount
+    super().save(*args, **kwargs)

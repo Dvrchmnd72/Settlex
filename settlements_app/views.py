@@ -16,9 +16,11 @@ from django.template.loader import get_template
 from xhtml2pdf import pisa
 from django.http import FileResponse
 from docx import Document
-from .forms import SettlementCalculatorForm, PaymentDirectionForm, PaymentDirectionLineItemForm
+from .forms import SettlementCalculatorForm, PaymentDirectionForm, PaymentDirectionLineItemForm, RatesAdjustmentForm
 import io
 from decimal import Decimal, InvalidOperation
+from .models import RatesAdjustment
+from decimal import Decimal, ROUND_HALF_UP
 
 
 import pytz
@@ -1348,18 +1350,82 @@ def delete_message(request):
 
 
 def calculate_adjustment(full_amount, period_start, period_end, adj_date):
-    """Pro rata calculation for a given adjustment period."""
+    """Pro-rata adjustment: seller reimbursed for unused days after settlement."""
     if not (period_start and period_end and adj_date):
-        return 0
+        return Decimal('0.00'), 0, Decimal('0.00')
+
     try:
         total_days = (period_end - period_start).days + 1
-        buyer_days = (period_end - adj_date).days + 1
+        buyer_days = (period_end - adj_date).days
         buyer_days = max(0, min(buyer_days, total_days))
-        daily_rate = full_amount / total_days if total_days else 0
-        return round(buyer_days * daily_rate, 2)
+
+        daily_rate = full_amount / total_days if total_days > 0 else Decimal('0.00')
+        adjustment_amount = (daily_rate * buyer_days).quantize(Decimal('0.01'), rounding=ROUND_HALF_UP)
+        return daily_rate.quantize(Decimal('0.01')), buyer_days, adjustment_amount
     except Exception:
         logger.exception("Failed to calculate adjustment")
-        return 0
+        return Decimal('0.00'), 0, Decimal('0.00')
+
+from decimal import Decimal, ROUND_HALF_UP
+from django.contrib import messages
+from django.shortcuts import render, get_object_or_404, redirect
+from datetime import timedelta
+from .models import Instruction
+from .forms import RatesAdjustmentForm
+import logging
+
+logger = logging.getLogger(__name__)
+
+def rates_adjustment_view(request, instruction_id):
+    instruction = get_object_or_404(Instruction, id=instruction_id)
+
+    daily_rate = None
+    buyer_days = None
+    calculated_amount = None
+
+    if request.method == 'POST':
+        form = RatesAdjustmentForm(request.POST)
+        if form.is_valid():
+            adj = form.save(commit=False)
+
+            # Ensure required fields are provided
+            if adj.period_from and adj.period_to and adj.total_amount and instruction.settlement_date:
+                try:
+                    total_days = (adj.period_to - adj.period_from).days + 1
+                    buyer_start = instruction.settlement_date + timedelta(days=1)
+                    buyer_days = (adj.period_to - buyer_start).days + 1
+
+                    # Bounds check
+                    buyer_days = max(0, min(buyer_days, total_days))
+
+                    daily_rate = (adj.total_amount / Decimal(total_days)).quantize(Decimal('0.01'), rounding=ROUND_HALF_UP)
+                    calculated_amount = (daily_rate * Decimal(buyer_days)).quantize(Decimal('0.01'), rounding=ROUND_HALF_UP)
+
+                    adj.amount = calculated_amount
+                except Exception as e:
+                    logger.exception("Error calculating rates adjustment: %s", e)
+                    messages.error(request, "An error occurred while calculating the adjustment.")
+                    adj.amount = Decimal('0.00')
+            else:
+                adj.amount = Decimal('0.00')
+
+            adj.instruction = instruction
+            adj.save()
+
+            messages.success(request, "Rates adjustment saved successfully.")
+            return redirect('settlements_app:rates_adjustment', instruction_id=instruction.id)
+    else:
+        form = RatesAdjustmentForm()
+
+    return render(request, 'settlements_app/rates_adjustment.html', {
+        'form': form,
+        'instruction': instruction,
+        'daily_rate': daily_rate,
+        'buyer_days': buyer_days,
+        'calculated_amount': calculated_amount,
+    })
+
+
 
 def settlement_calculator(request):
     result = None

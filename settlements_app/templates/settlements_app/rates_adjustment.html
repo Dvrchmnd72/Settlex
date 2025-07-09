@@ -1,0 +1,69 @@
+{% extends 'settlements_app/base.html' %}
+{% load static %}
+
+{% block content %}
+<div class="container mt-4">
+    <h2 class="mb-4">Rates Adjustment</h2>
+
+    <form method="post" class="bg-light p-4 rounded shadow-sm">
+        {% csrf_token %}
+
+        <div class="row mb-3">
+            <div class="col-md-6">
+                {{ form.period_from.label_tag }} {{ form.period_from }}
+            </div>
+            <div class="col-md-6">
+                {{ form.period_to.label_tag }} {{ form.period_to }}
+            </div>
+        </div>
+
+        <div class="row mb-3">
+            <div class="col-md-6">
+                {{ form.total_amount.label_tag }} {{ form.total_amount }}
+            </div>
+            <div class="col-md-6">
+                {{ form.status.label_tag }} {{ form.status }}
+            </div>
+        </div>
+
+        <hr>
+
+        <div class="row mb-3">
+            <div class="col-md-4">
+                <label class="form-label fw-bold">Daily Rate (auto)</label>
+                <input type="text" class="form-control" value="{{ daily_rate|default:'-' }}" readonly>
+            </div>
+            <div class="col-md-4">
+                <label class="form-label fw-bold">Buyer Days (auto)</label>
+                <input type="text" class="form-control" value="{{ buyer_days|default:'-' }}" readonly>
+            </div>
+            <div class="col-md-4">
+                <label class="form-label fw-bold">Calculated Adjustment (auto)</label>
+                <input type="text" class="form-control" value="{{ calculated_amount|default:'-' }}" readonly>
+            </div>
+        </div>
+
+
+        <div class="mb-4">
+            {{ form.amount.label_tag }} {{ form.amount }}
+            <small class="form-text text-muted">You may override the calculated amount if necessary.</small>
+        </div>
+
+        <div class="mb-3">
+            <label class="form-label fw-bold">Payment Status Explanation</label>
+            <button class="btn btn-sm btn-outline-secondary" type="button" data-bs-toggle="collapse" data-bs-target="#statusExplanation">
+                What does this mean?
+            </button>
+            <div class="collapse mt-2" id="statusExplanation">
+                <ul>
+                    <li><strong>Paid:</strong> Council rates already paid by the vendor.</li>
+                    <li><strong>Adjusted as Paid:</strong> Treated as paid for settlement purposes but may not be paid yet.</li>
+                    <li><strong>Owing:</strong> Council rates still outstanding and payable at settlement.</li>
+                </ul>
+            </div>
+        </div>
+
+        <button type="submit" class="btn btn-primary">Save Adjustment</button>
+    </form>
+</div>
+{% endblock %}

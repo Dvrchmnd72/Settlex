@@ -3,9 +3,11 @@ from django.contrib.auth import views as auth_views
 from .views import (
     home, logout_view, register, new_instruction, upload_documents,
     my_transactions, solicitor_dashboard, edit_instruction, delete_instruction,
-    payment_direction, view_transaction,long_poll_messages, check_new_messages, send_message, reply_view,
-    mark_messages_read, check_typing_status, upload_chat_file, delete_message, settlement_calculator,
-    settlement_statement, settlement_statement_word, list_payment_directions, delete_line_item, edit_line_item,
+    payment_direction, view_transaction, long_poll_messages, check_new_messages,
+    send_message, reply_view, mark_messages_read, check_typing_status,
+    upload_chat_file, delete_message, settlement_calculator, settlement_statement,
+    settlement_statement_word, list_payment_directions, delete_line_item,
+    edit_line_item, rates_adjustment_view,
 )
 from settlements_app.views import SettlexTwoFactorSetupView
 from two_factor.views import LoginView
@@ -27,16 +29,21 @@ urlpatterns = [
     path("dashboard/", solicitor_dashboard, name="solicitor_dashboard"),
     path("edit-instruction/<int:id>/", edit_instruction, name="edit_instruction"),
     path("delete-instruction/<int:id>/", delete_instruction, name="delete_instruction"),
+
+    # Payment Directions
     path("payment-direction/<int:instruction_id>/", payment_direction, name="payment_direction"),
     path("payment-directions/", list_payment_directions, name="list_payment_directions"),
-    path('delete-line-item/<int:item_id>/', delete_line_item, name='delete_line_item'),
-    path('edit-line-item/', edit_line_item, name='edit_line_item'),
+    path("delete-line-item/<int:item_id>/", delete_line_item, name="delete_line_item"),
+    path("edit-line-item/", edit_line_item, name="edit_line_item"),
+
+    # Transaction and Settlement
     path("transaction/<int:transaction_id>/", view_transaction, name="view_transaction"),
     path("settlement-calculator/", settlement_calculator, name="settlement_calculator"),
     path("settlement-statement/", settlement_statement, name="settlement_statement"),
     path("settlement-statement-word/", settlement_statement_word, name="settlement_statement_word"),
 
-
+    # Adjustments
+    path('adjustments/rates/<int:instruction_id>/', rates_adjustment_view, name='rates_adjustment'),
 
 
 

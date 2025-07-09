@@ -64,7 +64,7 @@
         .file-upload-button { background: none; border: none; font-size: 1.2rem; cursor: pointer; margin-right: 0.5rem; }
         .sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0, 0, 0, 0); border: 0; }
     </style>
-    -->
+
 </head>
 <body>
 {% block content %}
@@ -96,24 +96,27 @@
                    class="{% if request.path|slice:":24" == '/settlex/upload-documents/' %}active{% endif %}">
                     <i class="fas fa-upload"></i> Upload Docs
                 </a>
+
+                <a href="{% url 'settlements_app:rates_adjustment' instruction_id=latest_instruction.id %}"
+                   class="{% if request.path|slice:":27" == '/settlex/adjustments/rates/' %}active{% endif %}">
+                    <i class="fas fa-receipt"></i> Settlement Adjustments
+                </a>
+
+                <a href="{% url 'settlements_app:list_payment_directions' %}"
+                   class="{% if request.path == '/settlex/payment-directions/' %}active{% endif %}">
+                    <i class="fas fa-money-check-alt"></i> Payment Directions
+                </a>
             {% endif %}
 
             <a href="{% url 'settlements_app:settlement_calculator' %}" class="{% if request.path == '/settlex/settlement-calculator/' %}active{% endif %}">
                 <i class="fas fa-balance-scale"></i> Settlement Calculator
             </a>
 
-            {% if latest_instruction %}
-                <a href="{% url 'settlements_app:list_payment_directions' %}"
-                    class="{% if request.path == '/settlex/payment-directions/' %}active{% endif %}">
-                    <i class="fas fa-money-check-alt"></i> Payment Directions
-                </a>
-
-            {% endif %}
-
             <a href="{% url 'settlements_app:logout' %}">
                 <i class="fas fa-sign-out-alt"></i> Logout
             </a>
         </div>
+
 
         <!-- Main Content for My Transactions -->
         <div class="main-content">
